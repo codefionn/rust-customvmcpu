@@ -1,5 +1,5 @@
 [package]
-name = "rust-vmcpu"
+name = "rust-customvmcpu"
 version = "0.1.0"
 authors = ["Fionn Langhans <fionn.langhans@gmail.com>"]
 edition = "2018"

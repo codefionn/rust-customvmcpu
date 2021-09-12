@@ -1,6 +1,7 @@
 # rust-vmcpu
 
-Custom CPU Instruction set executed with a rust program
+Custom CPU Instruction set executed with a rust program. Licensed unter GPL
+Version 3.
 
 ## Instruction format
 

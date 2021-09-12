@@ -45,7 +45,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rust-vmcpu"
+name = "rust-customvmcpu"
 version = "0.1.0"
 dependencies = [
  "num-derive",
