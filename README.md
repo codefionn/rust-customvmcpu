@@ -51,6 +51,21 @@ $ra
 $err
 ```
 
+### Values of the error register
+
+The register $err can be on of the following values:
+
+- 0: No error
+- 1: Invalid opcode
+- 2: Invalid register
+- 3: Invalid syscall
+- 4: Invalid memory address
+- 5: Read-only register
+- 6: Divisor must not be zero
+
+If a program terminates with an error, they are terminated with the error code
+32000 + $err.
+
 ## Immediates
 
 Immediates are integers. Also constants (like jump points) can be used as
@@ -118,6 +133,7 @@ sub $x $y
 mul $x $y
 
 // Divide x through y and store result in x
+// If $y error, $x will also be overwritten with 0
 div $x $y
 
 // Bitwise and x y and store result in x

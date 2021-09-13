@@ -78,27 +78,33 @@ pub enum OpCode {
 
 const LAST_OP_CODE: OpCode = OpCode::SYSCALLI;
 
+/// Errors that can occur
 #[derive(PartialEq, PartialOrd, Debug, Clone, Copy, FromPrimitive)]
 #[repr(u32)]
 pub enum Error {
-    // No error occured
+    /// No error occured
     NoError,
 
-    // Opcode of instruction is invalid
+    /// Opcode of instruction is invalid
     OpCode,
 
-    // Invalid register
+    /// Invalid register
     Register,
 
-    // Invalid syscall
+    /// Invalid syscall
     Syscall,
 
-    // Memory (Out-of-bounds)
+    /// Memory (Out-of-bounds)
     Memory,
 
-    // Registers are read-only
+    /// Registers are read-only
     ReadonlyRegister,
+
+    /// Divisor cannot be 0
+    DivisorNotZero,
 }
+
+const ERROR_START_NUM: u32 = 32000;
 
 /// Instruction interpreter (implementation for machine code and assembler)
 pub trait Interpreter {
@@ -195,13 +201,13 @@ impl<InterpreterImpl: Interpreter> VirtualMachine<InterpreterImpl> {
     }
 
     /// Execute program with entry point at 0
-    /// If result is greater than 32000 than it's a CPU error
+    /// If result is greater than ERROR_START_NUM than it's a CPU error
     pub fn execute_first(&mut self) -> u32 {
         self.execute(0)
     }
 
     /// Execute program with entry point at pos
-    /// If result is greater than 32000 than it's a CPU error
+    /// If result is greater than ERROR_START_NUM than it's a CPU error
     pub fn execute(&mut self, pos: u32) -> u32 {
         self.running = true;
         self.write_register_value(Register::IP, pos);
@@ -229,7 +235,7 @@ impl<InterpreterImpl: Interpreter> VirtualMachine<InterpreterImpl> {
             self.read_register_value(Register::R1)
         }
         else {
-            error_value + 32000
+            error_value + ERROR_START_NUM
         }
     }
 
@@ -268,6 +274,42 @@ impl<InterpreterImpl: Interpreter> VirtualMachine<InterpreterImpl> {
                     let (reg0, reg1) = Self::get_two_registers(instruction);
                     if let (Some(reg_value0), Some(reg_value1)) = (Register::from_u8(reg0), Register::from_u8(reg1)) {
                         self.write_user_register_value(reg_value0, self.read_user_register_value(reg_value0) + self.read_user_register_value(reg_value1));
+                    }
+                    else {
+                        eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
+                        self.write_error(Error::Register);
+                    }
+                },
+                OpCode::SUB => {
+                    let (reg0, reg1) = Self::get_two_registers(instruction);
+                    if let (Some(reg_value0), Some(reg_value1)) = (Register::from_u8(reg0), Register::from_u8(reg1)) {
+                        self.write_user_register_value(reg_value0, self.read_user_register_value(reg_value0) - self.read_user_register_value(reg_value1));
+                    }
+                    else {
+                        eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
+                        self.write_error(Error::Register);
+                    }
+                },
+                OpCode::MUL => {
+                    let (reg0, reg1) = Self::get_two_registers(instruction);
+                    if let (Some(reg_value0), Some(reg_value1)) = (Register::from_u8(reg0), Register::from_u8(reg1)) {
+                        self.write_user_register_value(reg_value0, self.read_user_register_value(reg_value0) * self.read_user_register_value(reg_value1));
+                    }
+                    else {
+                        eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
+                        self.write_error(Error::Register);
+                    }
+                },
+                OpCode::DIV => {
+                    let (reg0, reg1) = Self::get_two_registers(instruction);
+                    if let (Some(reg_value0), Some(reg_value1)) = (Register::from_u8(reg0), Register::from_u8(reg1)) {
+                        let divisor = self.read_user_register_value(reg_value1);
+                        if divisor == 0 {
+                            self.write_error(Error::DivisorNotZero);
+                            self.write_register_value(reg_value0, 0);
+                        } else {
+                            self.write_user_register_value(reg_value0, self.read_user_register_value(reg_value0) / divisor);
+                        }
                     }
                     else {
                         eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
@@ -440,7 +482,7 @@ pub type BinaryVirtualMachine = VirtualMachine<BinaryInterpreter>;
 
 #[cfg(test)]
 mod tests {
-    use super::{OpCode, BinaryInterpreter, BinaryVirtualMachine, Interpreter, Register, utils, Error};
+    use super::{OpCode, BinaryInterpreter, BinaryVirtualMachine, Interpreter, Register, utils, Error, ERROR_START_NUM};
 
     const SYSCALLI_EXIT_INSTRUCTION: u32 = (OpCode::SYSCALLI as u32) << 3 * 8;
     const LOAD_0_IN_R1_INSTRUCTION: u32 = utils::create_instruction_register_and_immediate(OpCode::LI, Register::R1, 0);
@@ -498,7 +540,7 @@ mod tests {
         let interpreter = BinaryInterpreter::new_with_program(&[inst, LOAD_0_IN_R1_INSTRUCTION, SYSCALLI_EXIT_INSTRUCTION]);
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
-        assert_eq!(32000 + (Error::ReadonlyRegister as u32), vm.execute_first());
+        assert_eq!(ERROR_START_NUM + (Error::ReadonlyRegister as u32), vm.execute_first());
     }
 
     #[test]
@@ -507,7 +549,7 @@ mod tests {
         let interpreter = BinaryInterpreter::new_with_program(&[inst, LOAD_0_IN_R1_INSTRUCTION, SYSCALLI_EXIT_INSTRUCTION]);
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
-        assert_eq!(32000 + (Error::ReadonlyRegister as u32), vm.execute_first());
+        assert_eq!(ERROR_START_NUM + (Error::ReadonlyRegister as u32), vm.execute_first());
     }
 
     #[test]
@@ -541,5 +583,88 @@ mod tests {
 
         assert_eq!(0, vm.execute_first());
         assert_eq!(16, vm.read_register_value(Register::R2));
+    }
+
+    #[test]
+    fn sub() {
+        let program: [u32; 5] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 16),
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R1, 5),
+            utils::create_instruction_two_registers(OpCode::SUB, Register::R0, Register::R1),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(11, vm.read_register_value(Register::R0));
+    }
+
+    #[test]
+    fn mul() {
+        let program: [u32; 5] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 4),
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R1, 5),
+            utils::create_instruction_two_registers(OpCode::MUL, Register::R0, Register::R1),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(20, vm.read_register_value(Register::R0));
+    }
+
+    #[test]
+    fn div() {
+        let program: [u32; 5] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 20),
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R1, 5),
+            utils::create_instruction_two_registers(OpCode::DIV, Register::R0, Register::R1),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(4, vm.read_register_value(Register::R0));
+
+        let program: [u32; 5] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 24),
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R1, 5),
+            utils::create_instruction_two_registers(OpCode::DIV, Register::R0, Register::R1),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(4, vm.read_register_value(Register::R0));
+    }
+
+    #[test]
+    fn div_divisor_zero()
+    {
+      let program: [u32; 5] = [
+          utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 20),
+          utils::create_instruction_register_and_immediate(OpCode::LI, Register::R1, 0),
+          utils::create_instruction_two_registers(OpCode::DIV, Register::R0, Register::R1),
+          LOAD_0_IN_R1_INSTRUCTION,
+          SYSCALLI_EXIT_INSTRUCTION
+      ];
+
+      let interpreter = BinaryInterpreter::new_with_program(&program);
+      let mut vm = BinaryVirtualMachine::new(interpreter);
+
+      assert_eq!(ERROR_START_NUM + Error::DivisorNotZero as u32, vm.execute_first());
+      assert_eq!(0, vm.read_register_value(Register::R0));
     }
 }
