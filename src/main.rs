@@ -17,13 +17,36 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use std::{env, fs, process::exit};
+
 mod runtime;
 
 use runtime::{Interpreter, BinaryVirtualMachine, OpCode, BinaryInterpreter};
 
+fn print_help() {
+    println!("rust-customvmcpu - Virtual CPU written in rust");
+    println!("");
+    println!("Usage: rust-customvmcpu [Options] <program>");
+}
+
 fn main() {
-    let interpreter = BinaryInterpreter::new_with_program(&[(OpCode::SYSCALLI as u32) << 3 * 8]);
-    let mut vm = BinaryVirtualMachine::new(interpreter);
-    
-    vm.execute_first();
+    let args: Vec<String> = env::args().collect();
+    if args.is_empty() {
+        print_help();
+        exit(1);
+    }
+
+    let file = args.last().expect("Unknown error"); // Check above: not empty
+    let input = fs::read(file);
+    match input {
+        Ok(data) => {
+            let interpreter = BinaryInterpreter::new_with_initial(&data);
+            let vm = BinaryVirtualMachine::new(interpreter);
+            exit(vm.execute_first() as i32);
+        },
+        _ => {
+            eprintln!("Error: Could not read file \"{}\"", file);
+            exit(1);
+        }
+    }
 }
