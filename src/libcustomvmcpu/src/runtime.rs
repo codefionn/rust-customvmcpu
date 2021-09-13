@@ -340,7 +340,7 @@ impl<InterpreterImpl: Interpreter> VirtualMachine<InterpreterImpl> {
     /// Saves the address of the next instruction in $ra
     #[inline(always)]
     fn write_next_instruction_address(&mut self) {
-        self.write_register_value(Register::RA, self.read_register_value(Register::IP) + 1);
+        self.write_register_value(Register::RA, self.read_register_value(Register::IP) + 4);
     }
 
     /// Check if register is read-only
