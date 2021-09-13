@@ -151,7 +151,7 @@ impl BinaryInterpreter {
     /// Initializes BinaryInterpreter with initial memory
     pub fn new_with_initial(initial_memory: &Vec<u8>) -> BinaryInterpreter {
         let mut result = Self::new();
-        result.memory.copy_from_slice(&initial_memory);
+        result.memory[0..initial_memory.len()].copy_from_slice(&initial_memory);
         result
     }
 }
@@ -400,7 +400,6 @@ impl<InterpreterImpl: Interpreter> VirtualMachine<InterpreterImpl> {
     fn syscall(&mut self, syscall: u32) {
         match syscall {
             0 => {
-                println!("Terminating ...");
                 self.running = false;
             },
             _ => {

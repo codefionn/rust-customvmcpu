@@ -30,13 +30,14 @@ fn print_help() {
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    if args.is_empty() {
+    if args.len() < 2 {
         print_help();
-        exit(1);
+        exit(1)
     }
+    let args = args.get(1..).expect("Unexpected error");
 
-    let file = args.last().expect("Unknown error"); // Check above: not empty
-    let input: Vec<u8> = if file == "-" {
+    let file = args.last().expect("Unexpected error"); // Check above: not empty
+    let input: Vec<u8> = if file != "-" {
         if let Ok(data) = fs::read(file) {
             data
         }
