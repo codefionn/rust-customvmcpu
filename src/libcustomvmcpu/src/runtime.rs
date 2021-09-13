@@ -460,29 +460,29 @@ impl<InterpreterImpl: Interpreter> VirtualMachine<InterpreterImpl> {
     }
 }
 
-mod utils {
+pub mod utils {
     use super::{OpCode, Register};
 
     pub const fn create_instruction_register(opcode: OpCode, reg: Register) -> u32
     {
-        u32::to_le(((opcode as u32) << 3 * 8) | (reg as u32))
+        ((opcode as u32) << 3 * 8) | (reg as u32)
     }
 
     pub const fn create_instruction_immediate(opcode: OpCode, imm: u32) -> u32
     {
-        u32::to_le(((opcode as u32) << 3 * 8) | imm)
+        ((opcode as u32) << 3 * 8) | imm
     }
 
     pub const fn create_instruction_register_and_immediate(opcode: OpCode, reg: Register, imm: u32) -> u32 {
-        u32::to_le(((opcode as u32)  << 3 * 8) | ((reg as u32) << 2 * 8 + 4) | (imm & 0x000FFFFF))
+        ((opcode as u32)  << 3 * 8) | ((reg as u32) << 2 * 8 + 4) | (imm & 0x000FFFFF)
     }
     
     pub const fn create_instruction_two_registers(opcode: OpCode, reg0: Register, reg1: Register) -> u32 {
-        u32::to_le(((opcode as u32)  << 3 * 8) | ((reg0 as u32) << 2 * 8 + 4) | (reg1 as u32))
+        ((opcode as u32)  << 3 * 8) | ((reg0 as u32) << 2 * 8 + 4) | (reg1 as u32)
     }
     
     pub const fn create_instruction_two_registers_and_immediate(opcode: OpCode, reg0: Register, reg1: Register, imm: u32) -> u32 {
-        u32::to_le(((opcode as u32)  << 3 * 8) | ((reg0 as u32) << 2 * 8 + 4) | ((reg1 as u32) << 2 * 8) | (imm & 0x0000FFFF))
+        ((opcode as u32)  << 3 * 8) | ((reg0 as u32) << 2 * 8 + 4) | ((reg1 as u32) << 2 * 8) | (imm & 0x0000FFFF)
     }
 }
 

@@ -18,6 +18,7 @@
  */
 
 use std::{env, fs, process::exit};
+use std::io::{self, Read};
 
 use libcustomvmcpu::runtime::{Interpreter, BinaryVirtualMachine, OpCode, BinaryInterpreter};
 
@@ -35,16 +36,24 @@ fn main() {
     }
 
     let file = args.last().expect("Unknown error"); // Check above: not empty
-    let input = fs::read(file);
-    match input {
-        Ok(data) => {
-            let interpreter = BinaryInterpreter::new_with_initial(&data);
-            let mut vm = BinaryVirtualMachine::new(interpreter);
-            exit(vm.execute_first() as i32);
-        },
-        _ => {
+    let input: Vec<u8> = if file == "-" {
+        if let Ok(data) = fs::read(file) {
+            data
+        }
+        else {
             eprintln!("Error: Could not read file \"{}\"", file);
             exit(1);
         }
-    }
+    } else {
+        let mut result: Vec<u8> = Vec::new();
+        if let Err(_) = io::stdin().lock().read_to_end(&mut result) {
+            eprintln!("Error: Could not read from standard input");
+            exit(1);
+        }
+        result
+    };
+
+    let interpreter = BinaryInterpreter::new_with_initial(&input);
+    let mut vm = BinaryVirtualMachine::new(interpreter);
+    exit(vm.execute_first() as i32);
 }
