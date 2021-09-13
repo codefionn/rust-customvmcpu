@@ -216,7 +216,7 @@ impl<InterpreterImpl: Interpreter> VirtualMachine<InterpreterImpl> {
         loop {
             let instruction = self.interpreter.read(self.read_register_value(Register::IP));
             if let Some(parsed_instruction) = instruction {
-                self.interpret_instruction(parsed_instruction);
+                self.interpret_instruction(u32::from_le(parsed_instruction));
             }
             else {
                 self.write_register_value(Register::ERR, Error::Memory as u32);
@@ -457,24 +457,24 @@ mod utils {
 
     pub const fn create_instruction_register(opcode: OpCode, reg: Register) -> u32
     {
-        ((opcode as u32) << 3 * 8) | (reg as u32)
+        u32::to_le(((opcode as u32) << 3 * 8) | (reg as u32))
     }
 
     pub const fn create_instruction_immediate(opcode: OpCode, imm: u32) -> u32
     {
-        ((opcode as u32) << 3 * 8) | imm
+        u32::to_le(((opcode as u32) << 3 * 8) | imm)
     }
 
     pub const fn create_instruction_register_and_immediate(opcode: OpCode, reg: Register, imm: u32) -> u32 {
-        ((opcode as u32)  << 3 * 8) | ((reg as u32) << 2 * 8 + 4) | (imm & 0x000FFFFF)
+        u32::to_le(((opcode as u32)  << 3 * 8) | ((reg as u32) << 2 * 8 + 4) | (imm & 0x000FFFFF))
     }
     
     pub const fn create_instruction_two_registers(opcode: OpCode, reg0: Register, reg1: Register) -> u32 {
-        ((opcode as u32)  << 3 * 8) | ((reg0 as u32) << 2 * 8 + 4) | (reg1 as u32)
+        u32::to_le(((opcode as u32)  << 3 * 8) | ((reg0 as u32) << 2 * 8 + 4) | (reg1 as u32))
     }
     
     pub const fn create_instruction_two_registers_and_immediate(opcode: OpCode, reg0: Register, reg1: Register, imm: u32) -> u32 {
-        ((opcode as u32)  << 3 * 8) | ((reg0 as u32) << 2 * 8 + 4) | ((reg1 as u32) << 2 * 8) | (imm & 0x0000FFFF)
+        u32::to_le(((opcode as u32)  << 3 * 8) | ((reg0 as u32) << 2 * 8 + 4) | ((reg1 as u32) << 2 * 8) | (imm & 0x0000FFFF))
     }
 }
 
@@ -484,7 +484,7 @@ pub type BinaryVirtualMachine = VirtualMachine<BinaryInterpreter>;
 mod tests {
     use super::{OpCode, BinaryInterpreter, BinaryVirtualMachine, Interpreter, Register, utils, Error, ERROR_START_NUM};
 
-    const SYSCALLI_EXIT_INSTRUCTION: u32 = (OpCode::SYSCALLI as u32) << 3 * 8;
+    const SYSCALLI_EXIT_INSTRUCTION: u32 = u32::to_le((OpCode::SYSCALLI as u32) << 3 * 8);
     const LOAD_0_IN_R1_INSTRUCTION: u32 = utils::create_instruction_register_and_immediate(OpCode::LI, Register::R1, 0);
 
     #[test]

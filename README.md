@@ -5,7 +5,7 @@ Version 3.
 
 ## Instruction format
 
-Instructions are always 32-bit long
+Instructions are always 32-bit long and little-endian
 
 ```
 0-7: Opcode (8-bit)
