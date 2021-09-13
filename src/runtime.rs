@@ -18,6 +18,7 @@
  */
 
 use std::convert::TryFrom;
+use std::convert::TryInto;
 use num_derive::FromPrimitive;    
 use num_traits::FromPrimitive;
 
@@ -110,20 +111,20 @@ const ERROR_START_NUM: u32 = 32000;
 pub trait Interpreter {
     /// Read from memory address
     #[must_use]
-    fn read(&self, pos: u32) -> Option<u32>;
+    fn read_u32(&self, pos: u32) -> Option<u32>;
 
     /// Write to memory address
     #[must_use]
-    fn write(&mut self, pos: u32, value: u32) -> bool;
+    fn write_u32(&mut self, pos: u32, value: u32) -> bool;
 
     /// Must memory
     fn len(&self) -> u32;
 }
 
-pub const BINARY_INTERPRETER_MEM_SIZE: usize = 1024 * 16;
+pub const BINARY_INTERPRETER_MEM_SIZE: usize = 1024 * 16 * 4;
 
 pub struct BinaryInterpreter {
-    memory: [u32; BINARY_INTERPRETER_MEM_SIZE],
+    memory: [u8; BINARY_INTERPRETER_MEM_SIZE],
 }
 
 impl BinaryInterpreter {
@@ -139,7 +140,7 @@ impl BinaryInterpreter {
 
         let start_pos: u32 = 0;
         for pos in 0..program.len() {
-            if !result.write(pos as u32 + start_pos, program[pos]) {
+            if !result.write_u32(pos as u32 * 4 + start_pos, program[pos]) {
                 panic!("Program length must be smaller than memory");
             }
         }
@@ -150,10 +151,10 @@ impl BinaryInterpreter {
 
 impl Interpreter for BinaryInterpreter {
     #[must_use]
-    fn read(&self, pos: u32) -> Option<u32> {
-        let result = self.memory.get(pos as usize);
-        return if let Some(&result) = result {
-            Some(result)
+    fn read_u32(&self, pos: u32) -> Option<u32> {
+        let result = self.memory.get(pos as usize..(pos as usize + 4));
+        return if let Some(result) = result {
+            Some(u32::from_le_bytes(result.try_into().expect("Unexpected error")))
         }
         else {
             None
@@ -161,10 +162,10 @@ impl Interpreter for BinaryInterpreter {
     }
 
     #[must_use]
-    fn write(&mut self, pos: u32, value: u32) -> bool {
-        let result = self.memory.get_mut(pos as usize);
+    fn write_u32(&mut self, pos: u32, value: u32) -> bool {
+        let result = self.memory.get_mut(pos as usize..pos as usize + 4);
         return if let Some(result) = result {
-            *result = value;
+            result.copy_from_slice(&u32::to_le_bytes(value));
             true
         }
         else {
@@ -214,9 +215,9 @@ impl<InterpreterImpl: Interpreter> VirtualMachine<InterpreterImpl> {
         self.write_register_value(Register::ERR, Error::NoError as u32);
 
         loop {
-            let instruction = self.interpreter.read(self.read_register_value(Register::IP));
+            let instruction = self.interpreter.read_u32(self.read_register_value(Register::IP));
             if let Some(parsed_instruction) = instruction {
-                self.interpret_instruction(u32::from_le(parsed_instruction));
+                self.interpret_instruction(parsed_instruction);
             }
             else {
                 self.write_register_value(Register::ERR, Error::Memory as u32);
@@ -227,7 +228,7 @@ impl<InterpreterImpl: Interpreter> VirtualMachine<InterpreterImpl> {
                 break;
             }
 
-            self.write_register_value(Register::IP, self.read_register_value(Register::IP) + 1);
+            self.write_register_value(Register::IP, self.read_register_value(Register::IP) + 4);
         } 
 
         let error_value = self.read_register_value(Register::ERR);
@@ -337,7 +338,7 @@ impl<InterpreterImpl: Interpreter> VirtualMachine<InterpreterImpl> {
 
     /// Check if register is read-only
     fn is_readonly(reg: Register) -> bool {
-        return match (reg) {
+        return match reg {
             Register::IP | Register::ERR | Register::RA => true,
             _ => false
         }
@@ -499,7 +500,7 @@ mod tests {
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(0, vm.read_register_value(Register::IP));
-        assert_eq!(Some(syscode_inst), vm.get_interpreter().read(0));
+        assert_eq!(Some(syscode_inst), vm.get_interpreter().read_u32(0));
         assert_eq!(0, vm.execute_first());
         assert_eq!(0, vm.read_register_value(Register::IP));
     }
