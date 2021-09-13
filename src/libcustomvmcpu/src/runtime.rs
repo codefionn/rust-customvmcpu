@@ -152,6 +152,7 @@ impl BinaryInterpreter {
     pub fn new_with_initial(initial_memory: &Vec<u8>) -> BinaryInterpreter {
         let mut result = Self::new();
         result.memory.copy_from_slice(&initial_memory);
+        result
     }
 }
 

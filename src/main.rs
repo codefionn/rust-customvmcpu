@@ -39,7 +39,7 @@ fn main() {
     match input {
         Ok(data) => {
             let interpreter = BinaryInterpreter::new_with_initial(&data);
-            let vm = BinaryVirtualMachine::new(interpreter);
+            let mut vm = BinaryVirtualMachine::new(interpreter);
             exit(vm.execute_first() as i32);
         },
         _ => {
