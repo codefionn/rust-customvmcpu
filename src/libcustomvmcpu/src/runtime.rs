@@ -405,7 +405,55 @@ impl<InterpreterImpl: Interpreter> VirtualMachine<InterpreterImpl> {
                     let address = Self::get_immediate(instruction);
                     self.write_register_value(Register::RA, self.read_register_value(Register::IP).wrapping_add(4)); // Plus 4 because it points to the next instruction
                     self.write_register_value(Register::IP, address.wrapping_sub(4)); // Minus 4 because this will be added after every cycle
-                }
+                },
+                OpCode::JZI => {
+                    let (reg, address) = Self::get_register_and_immediate(instruction);
+                    if let Some(reg_value) = Register::from_u8(reg) {
+                        if self.read_user_register_value(reg_value) == 0 {
+                            self.write_register_value(Register::IP, address.wrapping_sub(4));
+                        }
+                    }
+                    else {
+                        eprintln!("Register {:?} does not exists!", reg);
+                        self.write_error(Error::Register);
+                    }
+                },
+                OpCode::JNZI => {
+                    let (reg, address) = Self::get_register_and_immediate(instruction);
+                    if let Some(reg_value) = Register::from_u8(reg) {
+                        if self.read_user_register_value(reg_value) != 0 {
+                            self.write_register_value(Register::IP, address.wrapping_sub(4));
+                        }
+                    }
+                    else {
+                        eprintln!("Register {:?} does not exists!", reg);
+                        self.write_error(Error::Register);
+                    }
+                },
+                OpCode::JLZI => {
+                    let (reg, address) = Self::get_register_and_immediate(instruction);
+                    if let Some(reg_value) = Register::from_u8(reg) {
+                        if i32::from_le_bytes(u32::to_le_bytes(self.read_user_register_value(reg_value))) < 0 {
+                            self.write_register_value(Register::IP, address.wrapping_sub(4));
+                        }
+                    }
+                    else {
+                        eprintln!("Register {:?} does not exists!", reg);
+                        self.write_error(Error::Register);
+                    }
+                },
+                OpCode::JGZI => {
+                    let (reg, address) = Self::get_register_and_immediate(instruction);
+                    if let Some(reg_value) = Register::from_u8(reg) {
+                        if i32::from_le_bytes(u32::to_le_bytes(self.read_user_register_value(reg_value))) > 0 {
+                            self.write_register_value(Register::IP, address.wrapping_sub(4));
+                        }
+                    }
+                    else {
+                        eprintln!("Register {:?} does not exists!", reg);
+                        self.write_error(Error::Register);
+                    }
+                },
                 _ => {
                     eprintln!("Instruction {:?} does not exist!", opcode);
                     self.write_error(Error::OpCode);
@@ -963,5 +1011,104 @@ mod tests {
         assert_eq!(0, vm.execute_first());
         assert_eq!(32, vm.read_register_value(Register::R0));
         assert_eq!(8, vm.read_register_value(Register::R3));
+    }
+
+    #[test]
+    fn jzi() {
+        let program: [u32; 6] = [
+            utils::create_instruction_register_and_immediate(OpCode::JZI, Register::R0, 3 * 4),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 32),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(32, vm.read_register_value(Register::R0));
+
+    }
+
+    #[test]
+    fn jnzi() {
+        let program: [u32; 7] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, u32::from_le_bytes(i32::to_le_bytes(-1))),
+            utils::create_instruction_register_and_immediate(OpCode::JNZI, Register::R0, 4 * 4),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 32),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(32, vm.read_register_value(Register::R0));
+
+    }
+
+    #[test]
+    fn li_minus_1()
+    {
+        let program: [u32; 5] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 4 * 4),
+            utils::create_instruction_two_registers(OpCode::LW, Register::R0, Register::R0),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+            u32::from_le_bytes(i32::to_le_bytes(-1))
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(-1, i32::from_le_bytes(u32::to_le_bytes(vm.read_register_value(Register::R0))));
+    }
+
+    #[test]
+    fn jlzi() {
+        let program: [u32; 9] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 8 * 4),
+            utils::create_instruction_two_registers(OpCode::LW, Register::R0, Register::R0),
+            utils::create_instruction_register_and_immediate(OpCode::JLZI, Register::R0, 5 * 4),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 32),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+            u32::from_le_bytes(i32::to_le_bytes(-1))
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(32, vm.read_register_value(Register::R0) as i32);
+
+    }
+
+    #[test]
+    fn jgzi() {
+        let program: [u32; 7] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 1),
+            utils::create_instruction_register_and_immediate(OpCode::JGZI, Register::R0, 4 * 4),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 32),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(32, vm.read_register_value(Register::R0));
+
     }
 }
