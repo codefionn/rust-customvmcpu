@@ -1,4 +1,4 @@
-use libcustomvmcpu::runtime::{Register, OpCode};
+use libcustomvmcpu::common::{Register, OpCode};
 use libcustomvmcpu::runtime::utils;
 
 use std::fs;

@@ -20,7 +20,8 @@
 use std::{env, fs, process::exit};
 use std::io::{self, Read};
 
-use libcustomvmcpu::runtime::{Interpreter, BinaryVirtualMachine, OpCode, BinaryInterpreter, Register};
+use libcustomvmcpu::runtime::{Interpreter, BinaryVirtualMachine, BinaryInterpreter};
+use libcustomvmcpu::common::{OpCode, Register};
 
 fn print_help() {
     println!("rust-customvmcpu - Virtual CPU written in rust");
