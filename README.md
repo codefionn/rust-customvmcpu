@@ -3,6 +3,26 @@
 Custom CPU Instruction set executed with a rust program. Licensed unter GPL
 Version 3.
 
+## Build & run
+
+### Linux
+
+Build:
+
+```sh
+git clone https://github.com/codefionn/rust-customvmcpu
+cd rust-customvmcpu
+cargo build
+```
+
+Run (in same directory)
+
+```sh
+cargo run -- --register-table ./src/exampleprogramwriter/out/add_32_100.bin
+```
+
+This runs the add program which adds two numbers on register $r0.
+
 ## Instruction format
 
 Instructions are always 32-bit long and little-endian
