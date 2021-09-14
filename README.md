@@ -1,6 +1,6 @@
 # rust-vmcpu
 
-Custom CPU Instruction set executed with a rust program. Licensed unter GPL
+Custom CPU instruction set executed with a rust program. Licensed unter GPL
 Version 3.
 
 ## Build & run
@@ -131,39 +131,51 @@ brackets ().
 ```
 // --- Memory operations ---
 // Copy from y to x (mov)
-cpy $x $y
+cpy $x, $y
 
-// Load from memory position y into x
-ld $x $y
+// Load word (32-bit integer) from memory position y into x
+lw $x, $y
 
-// Store x to memory position y
-st $x $y
+// Store word (32-bit integer) x to memory position y
+sw $x, $y
+
+// Load half-integer from memory position y into x
+lh $x, $y
+
+// Store half-integer x to memory position y
+sh $x, $y
+
+// Load integer from memory position y into x
+lb $x, $y
+
+// Store integer x to memory position y
+sb $x, $y
 
 // Store immediate y into x
 li $x, %y
 
 // --- Arithmetic instructions ---
 // Add x and y and store result in x
-add $x $y
+add $x, $y
 
 // Subtract y from x and store result in x
-sub $x $y
+sub $x, $y
 
 // Multiply x times y and store result in x
-mul $x $y
+mul $x, $y
 
 // Divide x through y and store result in x
 // If $y error, $x will also be overwritten with 0
-div $x $y
+div $x, $y
 
 // Bitwise and x y and store result in x
-and $x $y
+and $x, $y
 
 // Bitwise or x y and store result in x
-or $x $y
+or $x, $y
 
 // Bitwise xor x y and store result xor
-xor $x $y
+xor $x, $y
 
 // Bitwise not x and store result in x
 not $x
@@ -205,22 +217,26 @@ The following system calls are supported
 ## Opcodes
 
 - cpy: 0x00
-- ld: 0x01
-- st: 0x02
-- li: 0x03
-- add: 0x04
-- sub: 0x05
-- mul: 0x06
-- div: 0x07
-- and: 0x08
-- or: 0x09
-- xor: 0x0A
-- not: 0x0B
-- j: 0x0C
-- ji: 0x0D
-- jil: 0x0E
-- jzi: 0x0F
-- jnzi: 0x10
-- jlzi: 0x11
-- jgzi: 0x12
-- syscalli: 0x13
+- lw: 0x01
+- sw: 0x02
+- lh: 0x03
+- sh: 0x04
+- lb: 0x05
+- sb: 0x06
+- li: 0x07
+- add: 0x08
+- sub: 0x09
+- mul: 0x0A
+- div: 0x0B
+- and: 0x0C
+- or: 0x0D
+- xor: 0x0E
+- not: 0x0F
+- j: 0x10
+- ji: 0x11
+- jil: 0x12
+- jzi: 0x13
+- jnzi: 0x14
+- jlzi: 0x15
+- jgzi: 0x16
+- syscalli: 0x17

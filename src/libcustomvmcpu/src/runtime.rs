@@ -56,8 +56,12 @@ const LAST_REGISTER: Register = Register::ERR;
 #[repr(u8)]
 pub enum OpCode {
     CPY,
-    LD,
-    ST,
+    LW,
+    SW,
+    LH,
+    SH,
+    LB,
+    SB,
     LI,
     ADD,
     SUB,
