@@ -213,7 +213,7 @@ impl<InterpreterImpl: Interpreter> VirtualMachine<InterpreterImpl> {
                 break;
             }
 
-            self.write_register_value(Register::IP, self.read_register_value(Register::IP) + 4);
+            self.write_register_value(Register::IP, self.read_register_value(Register::IP).wrapping_add(4));
         } 
 
         let error_value = self.read_register_value(Register::ERR);
@@ -342,7 +342,7 @@ impl<InterpreterImpl: Interpreter> VirtualMachine<InterpreterImpl> {
                 OpCode::ADD => {
                     let (reg0, reg1) = Self::get_two_registers(instruction);
                     if let (Some(reg_value0), Some(reg_value1)) = (Register::from_u8(reg0), Register::from_u8(reg1)) {
-                        self.write_user_register_value(reg_value0, self.read_user_register_value(reg_value0) + self.read_user_register_value(reg_value1));
+                        self.write_user_register_value(reg_value0, self.read_user_register_value(reg_value0).wrapping_add(self.read_user_register_value(reg_value1)));
                     }
                     else {
                         eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
@@ -352,7 +352,7 @@ impl<InterpreterImpl: Interpreter> VirtualMachine<InterpreterImpl> {
                 OpCode::SUB => {
                     let (reg0, reg1) = Self::get_two_registers(instruction);
                     if let (Some(reg_value0), Some(reg_value1)) = (Register::from_u8(reg0), Register::from_u8(reg1)) {
-                        self.write_user_register_value(reg_value0, self.read_user_register_value(reg_value0) - self.read_user_register_value(reg_value1));
+                        self.write_user_register_value(reg_value0, self.read_user_register_value(reg_value0).wrapping_sub(self.read_user_register_value(reg_value1)));
                     }
                     else {
                         eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
@@ -362,7 +362,7 @@ impl<InterpreterImpl: Interpreter> VirtualMachine<InterpreterImpl> {
                 OpCode::MUL => {
                     let (reg0, reg1) = Self::get_two_registers(instruction);
                     if let (Some(reg_value0), Some(reg_value1)) = (Register::from_u8(reg0), Register::from_u8(reg1)) {
-                        self.write_user_register_value(reg_value0, self.read_user_register_value(reg_value0) * self.read_user_register_value(reg_value1));
+                        self.write_user_register_value(reg_value0, self.read_user_register_value(reg_value0).wrapping_mul(self.read_user_register_value(reg_value1)));
                     }
                     else {
                         eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
@@ -377,7 +377,7 @@ impl<InterpreterImpl: Interpreter> VirtualMachine<InterpreterImpl> {
                             self.write_error(Error::DivisorNotZero);
                             self.write_register_value(reg_value0, 0);
                         } else {
-                            self.write_user_register_value(reg_value0, self.read_user_register_value(reg_value0) / divisor);
+                            self.write_user_register_value(reg_value0, self.read_user_register_value(reg_value0).wrapping_div(divisor));
                         }
                     }
                     else {
@@ -390,7 +390,7 @@ impl<InterpreterImpl: Interpreter> VirtualMachine<InterpreterImpl> {
                     let reg = Self::get_registers(instruction);
                     if let Some(reg_value) = Register::from_u8(reg) {
                         let address = self.read_user_register_value(reg_value);
-                        self.write_register_value(Register::IP, address - 4); // Minus 4 because this will be added after every cycle
+                        self.write_register_value(Register::IP, address.wrapping_sub(4)); // Minus 4 because this will be added after every cycle
                     }
                     else {
                         eprintln!("Register {:?} does not exists!", reg);
@@ -399,12 +399,12 @@ impl<InterpreterImpl: Interpreter> VirtualMachine<InterpreterImpl> {
                 },
                 OpCode::JI => {
                     let address = Self::get_immediate(instruction);
-                    self.write_register_value(Register::IP, address - 4); // Minus 4 because this will be added after every cycle
+                    self.write_register_value(Register::IP, address.wrapping_sub(4)); // Minus 4 because this will be added after every cycle
                 }
                 OpCode::JIL => {
                     let address = Self::get_immediate(instruction);
-                    self.write_register_value(Register::RA, self.read_register_value(Register::IP) + 4); // Plus 4 because it points to the next instruction
-                    self.write_register_value(Register::IP, address - 4); // Minus 4 because this will be added after every cycle
+                    self.write_register_value(Register::RA, self.read_register_value(Register::IP).wrapping_add(4)); // Plus 4 because it points to the next instruction
+                    self.write_register_value(Register::IP, address.wrapping_sub(4)); // Minus 4 because this will be added after every cycle
                 }
                 _ => {
                     eprintln!("Instruction {:?} does not exist!", opcode);
@@ -905,5 +905,63 @@ mod tests {
         assert_eq!(0, vm.execute_first());
         assert_eq!(234, vm.get_interpreter().read_u8(5 * 4).expect("Cannot read memory address"));
         assert_eq!(234, vm.get_interpreter().read_u32(5 * 4).expect("Cannot read memory address"));
+    }
+
+    #[test]
+    fn j() {
+        let program: [u32; 7] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R2, 4 * 4),
+            utils::create_instruction_register(OpCode::J, Register::R2),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 32),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(32, vm.read_register_value(Register::R0));
+    }
+
+    #[test]
+    fn ji() {
+        let program: [u32; 6] = [
+            utils::create_instruction_immediate(OpCode::JI, 3 * 4),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 32),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(32, vm.read_register_value(Register::R0));
+    }
+
+    #[test]
+    fn jil() {
+        let program: [u32; 8] = [
+            utils::create_instruction_immediate(OpCode::JI, 1 * 4), // nop
+            utils::create_instruction_immediate(OpCode::JIL, 4 * 4),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 32),
+            utils::create_instruction_two_registers(OpCode::CPY, Register::R3, Register::RA),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(32, vm.read_register_value(Register::R0));
+        assert_eq!(8, vm.read_register_value(Register::R3));
     }
 }
