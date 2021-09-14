@@ -385,6 +385,27 @@ impl<InterpreterImpl: Interpreter> VirtualMachine<InterpreterImpl> {
                         self.write_error(Error::Register);
                     }
                 },
+                // Unconditional jumps
+                OpCode::J => {
+                    let reg = Self::get_registers(instruction);
+                    if let Some(reg_value) = Register::from_u8(reg) {
+                        let address = self.read_user_register_value(reg_value);
+                        self.write_register_value(Register::IP, address - 4); // Minus 4 because this will be added after every cycle
+                    }
+                    else {
+                        eprintln!("Register {:?} does not exists!", reg);
+                        self.write_error(Error::Register);
+                    }
+                },
+                OpCode::JI => {
+                    let address = Self::get_immediate(instruction);
+                    self.write_register_value(Register::IP, address - 4); // Minus 4 because this will be added after every cycle
+                }
+                OpCode::JIL => {
+                    let address = Self::get_immediate(instruction);
+                    self.write_register_value(Register::RA, self.read_register_value(Register::IP) + 4); // Plus 4 because it points to the next instruction
+                    self.write_register_value(Register::IP, address - 4); // Minus 4 because this will be added after every cycle
+                }
                 _ => {
                     eprintln!("Instruction {:?} does not exist!", opcode);
                     self.write_error(Error::OpCode);
@@ -570,6 +591,20 @@ mod tests {
         assert_eq!(Some(syscode_inst), vm.get_interpreter().read_u32(0));
         assert_eq!(0, vm.execute_first());
         assert_eq!(0, vm.read_register_value(Register::IP));
+
+        let syscode_inst = SYSCALLI_EXIT_INSTRUCTION;
+        let interpreter = BinaryInterpreter::new_with_program(&[
+            syscode_inst,
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 32)
+        ]);
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.read_register_value(Register::IP));
+        assert_eq!(Some(syscode_inst), vm.get_interpreter().read_u32(0));
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(0, vm.read_register_value(Register::R0));
+        assert_eq!(0, vm.read_register_value(Register::IP));
+
     }
 
     #[test]
