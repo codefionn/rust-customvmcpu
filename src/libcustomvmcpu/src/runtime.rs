@@ -55,29 +55,54 @@ const LAST_REGISTER: Register = Register::ERR;
 #[derive(PartialEq, PartialOrd, Debug, Clone, Copy, FromPrimitive)]
 #[repr(u8)]
 pub enum OpCode {
+    /// Copy from register to register
     CPY,
+    /// Load from memory into register
     LW,
+    /// Store register into memory
     SW,
+    /// Load from memory into register
     LH,
+    /// Store register into memory
     SH,
+    /// Load from memory into register
     LB,
+    /// Store register into memory
     SB,
+    /// Load from immediate value (value is in instruction)
     LI,
+    /// Add values of two registers
     ADD,
+    /// Subtract values of two registers
     SUB,
+    /// Multiply values of two registers
     MUL,
+    /// Divide values of two registers
     DIV,
+    /// Perform logical and on two registers
     AND,
+    /// Perform logical or on two registers
     OR,
+    /// Perform logical xor on two registers
     XOR,
+    /// Perform logical not on on register
     NOT,
+    /// Perform unconditional jump to memory at register value
     J,
+    /// Perform unconditional jump to memory at immediate value
     JI,
+    /// Perform unconditional jump to memory at immediate value and store
+    /// next instruction address (current $ip) into register $ra
     JIL,
+    /// Perform conditional jump to memory at immediate value
     JZI,
+    /// Perform conditional jump to memory at immediate value
     JNZI,
+    /// Perform conditional jump to memory at immediate value
     JLZI,
+    /// Perform conditional jump to memory at immediate value
     JGZI,
+    /// Perform a system call
     SYSCALLI,
 }
 
@@ -120,6 +145,23 @@ pub trait Interpreter {
     /// Write to memory address
     #[must_use]
     fn write_u32(&mut self, pos: u32, value: u32) -> bool;
+
+    /// Read from memory address
+    #[must_use]
+    fn read_u16(&self, pos: u32) -> Option<u16>;
+
+    /// Write to memory address
+    #[must_use]
+    fn write_u16(&mut self, pos: u32, value: u16) -> bool;
+
+    /// Read from memory address
+    #[must_use]
+    fn read_u8(&self, pos: u32) -> Option<u8>;
+
+    /// Write to memory address
+    #[must_use]
+    fn write_u8(&mut self, pos: u32, value: u8) -> bool;
+
 
     /// Must memory
     fn len(&self) -> u32;
@@ -177,6 +219,52 @@ impl Interpreter for BinaryInterpreter {
         let result = self.memory.get_mut(pos as usize..pos as usize + 4);
         return if let Some(result) = result {
             result.copy_from_slice(&u32::to_le_bytes(value));
+            true
+        }
+        else {
+            false
+        }
+    }
+
+    #[must_use]
+    fn read_u16(&self, pos: u32) -> Option<u16> {
+        let result = self.memory.get(pos as usize..(pos as usize + 2));
+        return if let Some(result) = result {
+            Some(u16::from_le_bytes(result.try_into().expect("Unexpected error")))
+        }
+        else {
+            None
+        }
+    }
+
+    #[must_use]
+    fn write_u16(&mut self, pos: u32, value: u16) -> bool {
+        let result = self.memory.get_mut(pos as usize..pos as usize + 2);
+        return if let Some(result) = result {
+            result.copy_from_slice(&u16::to_le_bytes(value));
+            true
+        }
+        else {
+            false
+        }
+    }
+
+    #[must_use]
+    fn read_u8(&self, pos: u32) -> Option<u8> {
+        let result = self.memory.get(pos as usize);
+        return if let Some(&result) = result {
+            Some(result)
+        }
+        else {
+            None
+        }
+    }
+
+    #[must_use]
+    fn write_u8(&mut self, pos: u32, value: u8) -> bool {
+        let result = self.memory.get_mut(pos as usize);
+        return if let Some(result) = result {
+            *result = value;
             true
         }
         else {
@@ -271,7 +359,89 @@ impl<InterpreterImpl: Interpreter> VirtualMachine<InterpreterImpl> {
                         eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
                         self.write_error(Error::Register);
                     }
-                }
+                },
+                // Load-store
+                OpCode::LW => {
+                    let (reg0, reg1) = Self::get_two_registers(instruction);
+                    if let (Some(reg_value0), Some(reg_value1)) = (Register::from_u8(reg0), Register::from_u8(reg1)) {
+                        if let Some(result) = self.interpreter.read_u32(self.read_user_register_value(reg_value1)) {
+                            self.write_user_register_value(reg_value0, result);
+                        }
+                        else {
+                            self.write_error(Error::Memory);
+                        }
+                    }
+                    else {
+                        eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
+                        self.write_error(Error::Register);
+                    }
+                },
+                OpCode::SW => {
+                    let (reg0, reg1) = Self::get_two_registers(instruction);
+                    if let (Some(reg_value0), Some(reg_value1)) = (Register::from_u8(reg0), Register::from_u8(reg1)) {
+                        if !self.interpreter.write_u32(self.read_user_register_value(reg_value1), self.read_user_register_value(reg_value0)) {
+                            self.write_error(Error::Memory);
+                        }
+                    }
+                    else {
+                        eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
+                        self.write_error(Error::Register);
+                    }
+                },
+                OpCode::LH => {
+                    let (reg0, reg1) = Self::get_two_registers(instruction);
+                    if let (Some(reg_value0), Some(reg_value1)) = (Register::from_u8(reg0), Register::from_u8(reg1)) {
+                        if let Some(result) = self.interpreter.read_u16(self.read_user_register_value(reg_value1)) {
+                            self.write_user_register_value(reg_value0, result as u32);
+                        }
+                        else {
+                            self.write_error(Error::Memory);
+                        }
+                    }
+                    else {
+                        eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
+                        self.write_error(Error::Register);
+                    }
+                },
+                OpCode::SH => {
+                    let (reg0, reg1) = Self::get_two_registers(instruction);
+                    if let (Some(reg_value0), Some(reg_value1)) = (Register::from_u8(reg0), Register::from_u8(reg1)) {
+                        if !self.interpreter.write_u16(self.read_user_register_value(reg_value1), (self.read_user_register_value(reg_value0) & 0x0000FFFF).try_into().expect("Unexpected error")) {
+                            self.write_error(Error::Memory);
+                        }
+                    }
+                    else {
+                        eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
+                        self.write_error(Error::Register);
+                    }
+                },
+                OpCode::LB => {
+                    let (reg0, reg1) = Self::get_two_registers(instruction);
+                    if let (Some(reg_value0), Some(reg_value1)) = (Register::from_u8(reg0), Register::from_u8(reg1)) {
+                        if let Some(result) = self.interpreter.read_u8(self.read_user_register_value(reg_value1)) {
+                            self.write_user_register_value(reg_value0, result as u32);
+                        }
+                        else {
+                            self.write_error(Error::Memory);
+                        }
+                    }
+                    else {
+                        eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
+                        self.write_error(Error::Register);
+                    }
+                },
+                OpCode::SB => {
+                    let (reg0, reg1) = Self::get_two_registers(instruction);
+                    if let (Some(reg_value0), Some(reg_value1)) = (Register::from_u8(reg0), Register::from_u8(reg1)) {
+                        if !self.interpreter.write_u8(self.read_user_register_value(reg_value1), (self.read_user_register_value(reg_value0) & 0x000000FF).try_into().expect("Unexpected error")) {
+                            self.write_error(Error::Memory);
+                        }
+                    }
+                    else {
+                        eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
+                        self.write_error(Error::Register);
+                    }
+                },
                 OpCode::LI => {
                     let (reg0, imm1) = Self::get_register_and_immediate(instruction);
                     if let Some(reg_value0) = Register::from_u8(reg0) {
@@ -282,6 +452,7 @@ impl<InterpreterImpl: Interpreter> VirtualMachine<InterpreterImpl> {
                         self.write_error(Error::Register);
                     }
                 },
+                // Arithmetics
                 OpCode::ADD => {
                     let (reg0, reg1) = Self::get_two_registers(instruction);
                     if let (Some(reg_value0), Some(reg_value1)) = (Register::from_u8(reg0), Register::from_u8(reg1)) {
@@ -662,8 +833,7 @@ mod tests {
     }
 
     #[test]
-    fn div_divisor_zero()
-    {
+    fn div_divisor_zero() {
       let program: [u32; 5] = [
           utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 20),
           utils::create_instruction_register_and_immediate(OpCode::LI, Register::R1, 0),
@@ -677,5 +847,142 @@ mod tests {
 
       assert_eq!(ERROR_START_NUM + Error::DivisorNotZero as u32, vm.execute_first());
       assert_eq!(0, vm.read_register_value(Register::R0));
+    }
+
+    #[test]
+    fn lw() {
+        let program: [u32; 5] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R2, 4 * 4),
+            utils::create_instruction_two_registers(OpCode::LW, Register::R0, Register::R2),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+            1032
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(1032, vm.read_register_value(Register::R0));
+    }
+
+    #[test]
+    fn sw() {
+        let program: [u32; 5] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R2, 5 * 4),
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 1033),
+            utils::create_instruction_two_registers(OpCode::SW, Register::R0, Register::R2),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(1033, vm.get_interpreter().read_u32(5 * 4).expect("Cannot read memory address"));
+    }
+
+    #[test]
+    fn lh() {
+        let program: [u32; 5] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R2, 4 * 4),
+            utils::create_instruction_two_registers(OpCode::LH, Register::R0, Register::R2),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+            1032 // Will be stored in [0] and [1] of integer 0124, because little endian
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(1032, vm.read_register_value(Register::R0));
+    }
+
+    #[test]
+    fn sh() {
+        let program: [u32; 5] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R2, 5 * 4),
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 1033),
+            utils::create_instruction_two_registers(OpCode::SH, Register::R0, Register::R2),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(1033, vm.get_interpreter().read_u16(5 * 4).expect("Cannot read memory address"));
+    }
+
+    #[test]
+    fn lb() {
+        let program: [u32; 5] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R2, 4 * 4),
+            utils::create_instruction_two_registers(OpCode::LB, Register::R0, Register::R2),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+            234 // Will be stored in [0] and [1] of integer 0124, because little endian
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(234, vm.read_register_value(Register::R0));
+    }
+
+    #[test]
+    fn sb() {
+        let program: [u32; 5] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R2, 5 * 4),
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 234),
+            utils::create_instruction_two_registers(OpCode::SB, Register::R0, Register::R2),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(234, vm.get_interpreter().read_u8(5 * 4).expect("Cannot read memory address"));
+    }
+
+    #[test]
+    fn lb_partial() {
+        let program: [u32; 5] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R2, 4 * 4),
+            utils::create_instruction_two_registers(OpCode::LB, Register::R0, Register::R2),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+            1024 + 234 // Will be stored in [0] and [1] of integer 0124, because little endian
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(234, vm.read_register_value(Register::R0));
+    }
+
+    #[test]
+    fn sb_partial() {
+        let program: [u32; 5] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R2, 5 * 4),
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 1024 + 234),
+            utils::create_instruction_two_registers(OpCode::SB, Register::R0, Register::R2),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(234, vm.get_interpreter().read_u8(5 * 4).expect("Cannot read memory address"));
+        assert_eq!(234, vm.get_interpreter().read_u32(5 * 4).expect("Cannot read memory address"));
     }
 }
