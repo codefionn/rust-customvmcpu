@@ -151,7 +151,7 @@ lb $x, $y
 // Store integer x to memory position y
 sb $x, $y
 
-// Store immediate y into x
+// Store immediate y into x (20-bit, is two's complement)
 li $x, %y
 
 // --- Arithmetic instructions ---

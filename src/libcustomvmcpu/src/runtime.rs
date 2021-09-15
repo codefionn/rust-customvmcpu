@@ -329,7 +329,7 @@ impl<InterpreterImpl: Interpreter> VirtualMachine<InterpreterImpl> {
                     }
                 },
                 OpCode::LI => {
-                    let (reg0, imm1) = Self::get_register_and_immediate(instruction);
+                    let (reg0, imm1) = Self::get_register_and_twos_complement_immediate(instruction);
                     if let Some(reg_value0) = Register::from_u8(reg0) {
                         self.write_user_register_value(reg_value0, imm1);
                     }
@@ -572,12 +572,31 @@ impl<InterpreterImpl: Interpreter> VirtualMachine<InterpreterImpl> {
     }
 
     #[inline(always)]
+    fn get_register_and_twos_complement_immediate(instruction: u32) -> (u8, u32) {
+        (
+            u8::try_from((instruction & 0x00F00000) >> (2 * 8 + 4)).expect("Unexpected failure!"),
+            Self::get_u32_from_immediate(instruction & 0x000FFFFF, 0x000FFFFF, 0x00080000)
+        )
+    }
+
+    #[inline(always)]
     fn get_two_register_and_immediate(instruction: u32) -> (u8, u8, u32) {
         (
             u8::try_from((instruction & 0x00F00000) >> (2 * 8 + 4)).expect("Unexpected failure!"),
             u8::try_from((instruction & 0x000F0000) >> (2 * 8 + 0)).expect("Unexpected failure!"),
             instruction & 0x0000FFFF
         )
+    }
+
+    /// Returns u32 from immediate. Immediate is a twos complement!
+    #[inline(always)]
+    fn get_u32_from_immediate(imm: u32, bitmask: u32, check_negative_bitmask: u32) -> u32 {
+        if imm & check_negative_bitmask == 0 { // Positive
+            imm
+        }
+        else {
+            imm | !bitmask // Two's complement -> Add 1 to the start
+        }
     }
 
     pub fn get_interpreter(&mut self) -> &InterpreterImpl {
@@ -1029,7 +1048,6 @@ mod tests {
 
         assert_eq!(0, vm.execute_first());
         assert_eq!(32, vm.read_register_value(Register::R0));
-
     }
 
     #[test]
@@ -1049,7 +1067,6 @@ mod tests {
 
         assert_eq!(0, vm.execute_first());
         assert_eq!(32, vm.read_register_value(Register::R0));
-
     }
 
     #[test]
@@ -1061,6 +1078,22 @@ mod tests {
             LOAD_0_IN_R1_INSTRUCTION,
             SYSCALLI_EXIT_INSTRUCTION,
             u32::from_le_bytes(i32::to_le_bytes(-1))
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(-1, i32::from_le_bytes(u32::to_le_bytes(vm.read_register_value(Register::R0))));
+    }
+
+    #[test]
+    fn li_minus_1_new_way()
+    {
+        let program: [u32; 3] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, u32::from_le_bytes(i32::to_le_bytes(-1))),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
         ];
 
         let interpreter = BinaryInterpreter::new_with_program(&program);
@@ -1089,7 +1122,25 @@ mod tests {
 
         assert_eq!(0, vm.execute_first());
         assert_eq!(32, vm.read_register_value(Register::R0) as i32);
+    }
 
+    #[test]
+    fn jlzi_new_way() {
+        let program: [u32; 7] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, u32::from_le_bytes(i32::to_le_bytes(-1))),
+            utils::create_instruction_register_and_immediate(OpCode::JLZI, Register::R0, 4 * 4),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 32),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(32, vm.read_register_value(Register::R0) as i32);
     }
 
     #[test]
@@ -1109,6 +1160,5 @@ mod tests {
 
         assert_eq!(0, vm.execute_first());
         assert_eq!(32, vm.read_register_value(Register::R0));
-
     }
 }
