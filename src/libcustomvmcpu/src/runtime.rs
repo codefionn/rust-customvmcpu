@@ -237,96 +237,61 @@ impl<InterpreterImpl: Interpreter> VirtualMachine<InterpreterImpl> {
                     self.syscall(Self::get_immediate(instruction))
                 },
                 OpCode::CPY => {
-                    let (reg0, reg1) = Self::get_two_registers(instruction);
-                    if let (Some(reg_value0), Some(reg_value1)) = (Register::from_u8(reg0), Register::from_u8(reg1)) {
-                        self.write_user_register_value(reg_value0, self.read_register_value(reg_value1));
-                    }
-                    else {
-                        eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
-                        self.write_error(Error::Register);
-                    }
+                    self.binary_register_operation(instruction, |this: &mut Self, reg0, reg1|
+                        this.write_user_register_value(reg0, this.read_user_register_value(reg1))
+                    );
                 },
                 // Load-store
                 OpCode::LW => {
-                    let (reg0, reg1) = Self::get_two_registers(instruction);
-                    if let (Some(reg_value0), Some(reg_value1)) = (Register::from_u8(reg0), Register::from_u8(reg1)) {
-                        if let Some(result) = self.interpreter.read_u32(self.read_user_register_value(reg_value1)) {
-                            self.write_user_register_value(reg_value0, result);
+                    self.binary_register_operation(instruction, |this: &mut Self, reg0, reg1|
+                        if let Some(result) = this.interpreter.read_u32(this.read_user_register_value(reg1)) {
+                            this.write_user_register_value(reg0, result);
                         }
                         else {
-                            self.write_error(Error::Memory);
+                            this.write_error(Error::Memory);
                         }
-                    }
-                    else {
-                        eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
-                        self.write_error(Error::Register);
-                    }
+                    );
                 },
                 OpCode::SW => {
-                    let (reg0, reg1) = Self::get_two_registers(instruction);
-                    if let (Some(reg_value0), Some(reg_value1)) = (Register::from_u8(reg0), Register::from_u8(reg1)) {
-                        if !self.interpreter.write_u32(self.read_user_register_value(reg_value1), self.read_user_register_value(reg_value0)) {
-                            self.write_error(Error::Memory);
+                    self.binary_register_operation(instruction, |this: &mut Self, reg0, reg1|
+                        if !this.interpreter.write_u32(this.read_user_register_value(reg1), this.read_user_register_value(reg0)) {
+                            this.write_error(Error::Memory);
                         }
-                    }
-                    else {
-                        eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
-                        self.write_error(Error::Register);
-                    }
+                    );
                 },
                 OpCode::LH => {
-                    let (reg0, reg1) = Self::get_two_registers(instruction);
-                    if let (Some(reg_value0), Some(reg_value1)) = (Register::from_u8(reg0), Register::from_u8(reg1)) {
-                        if let Some(result) = self.interpreter.read_u16(self.read_user_register_value(reg_value1)) {
-                            self.write_user_register_value(reg_value0, result as u32);
+                    self.binary_register_operation(instruction, |this: &mut Self, reg0, reg1|
+                        if let Some(result) = this.interpreter.read_u16(this.read_user_register_value(reg1)) {
+                            this.write_user_register_value(reg0, result as u32);
                         }
                         else {
-                            self.write_error(Error::Memory);
+                            this.write_error(Error::Memory);
                         }
-                    }
-                    else {
-                        eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
-                        self.write_error(Error::Register);
-                    }
+                    );
                 },
                 OpCode::SH => {
-                    let (reg0, reg1) = Self::get_two_registers(instruction);
-                    if let (Some(reg_value0), Some(reg_value1)) = (Register::from_u8(reg0), Register::from_u8(reg1)) {
-                        if !self.interpreter.write_u16(self.read_user_register_value(reg_value1), (self.read_user_register_value(reg_value0) & 0x0000FFFF).try_into().expect("Unexpected error")) {
-                            self.write_error(Error::Memory);
+                    self.binary_register_operation(instruction, |this: &mut Self, reg0, reg1|
+                        if !this.interpreter.write_u16(this.read_user_register_value(reg1), (this.read_user_register_value(reg0) & 0x0000FFFF).try_into().expect("Unexpected error")) {
+                            this.write_error(Error::Memory);
                         }
-                    }
-                    else {
-                        eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
-                        self.write_error(Error::Register);
-                    }
+                    );
                 },
                 OpCode::LB => {
-                    let (reg0, reg1) = Self::get_two_registers(instruction);
-                    if let (Some(reg_value0), Some(reg_value1)) = (Register::from_u8(reg0), Register::from_u8(reg1)) {
-                        if let Some(result) = self.interpreter.read_u8(self.read_user_register_value(reg_value1)) {
-                            self.write_user_register_value(reg_value0, result as u32);
+                    self.binary_register_operation(instruction, |this: &mut Self, reg0, reg1|
+                        if let Some(result) = this.interpreter.read_u8(this.read_user_register_value(reg1)) {
+                            this.write_user_register_value(reg0, result as u32);
                         }
                         else {
-                            self.write_error(Error::Memory);
+                            this.write_error(Error::Memory);
                         }
-                    }
-                    else {
-                        eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
-                        self.write_error(Error::Register);
-                    }
+                    );
                 },
                 OpCode::SB => {
-                    let (reg0, reg1) = Self::get_two_registers(instruction);
-                    if let (Some(reg_value0), Some(reg_value1)) = (Register::from_u8(reg0), Register::from_u8(reg1)) {
-                        if !self.interpreter.write_u8(self.read_user_register_value(reg_value1), (self.read_user_register_value(reg_value0) & 0x000000FF).try_into().expect("Unexpected error")) {
-                            self.write_error(Error::Memory);
+                    self.binary_register_operation(instruction, |this: &mut Self, reg0, reg1|
+                        if !this.interpreter.write_u8(this.read_user_register_value(reg1), (this.read_user_register_value(reg0) & 0x000000FF).try_into().expect("Unexpected error")) {
+                            this.write_error(Error::Memory);
                         }
-                    }
-                    else {
-                        eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
-                        self.write_error(Error::Register);
-                    }
+                    );
                 },
                 OpCode::LI => {
                     let (reg0, imm1) = Self::get_register_and_twos_complement_immediate(instruction);
@@ -340,50 +305,24 @@ impl<InterpreterImpl: Interpreter> VirtualMachine<InterpreterImpl> {
                 },
                 // Arithmetics
                 OpCode::ADD => {
-                    let (reg0, reg1) = Self::get_two_registers(instruction);
-                    if let (Some(reg_value0), Some(reg_value1)) = (Register::from_u8(reg0), Register::from_u8(reg1)) {
-                        self.write_user_register_value(reg_value0, self.read_user_register_value(reg_value0).wrapping_add(self.read_user_register_value(reg_value1)));
-                    }
-                    else {
-                        eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
-                        self.write_error(Error::Register);
-                    }
+                    self.binary_register_operation_write0(instruction, |_: &mut Self, x, y| x.wrapping_add(y));
                 },
                 OpCode::SUB => {
-                    let (reg0, reg1) = Self::get_two_registers(instruction);
-                    if let (Some(reg_value0), Some(reg_value1)) = (Register::from_u8(reg0), Register::from_u8(reg1)) {
-                        self.write_user_register_value(reg_value0, self.read_user_register_value(reg_value0).wrapping_sub(self.read_user_register_value(reg_value1)));
-                    }
-                    else {
-                        eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
-                        self.write_error(Error::Register);
-                    }
+                    self.binary_register_operation_write0(instruction, |_: &mut Self, x, y| x.wrapping_sub(y));
                 },
                 OpCode::MUL => {
-                    let (reg0, reg1) = Self::get_two_registers(instruction);
-                    if let (Some(reg_value0), Some(reg_value1)) = (Register::from_u8(reg0), Register::from_u8(reg1)) {
-                        self.write_user_register_value(reg_value0, self.read_user_register_value(reg_value0).wrapping_mul(self.read_user_register_value(reg_value1)));
-                    }
-                    else {
-                        eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
-                        self.write_error(Error::Register);
-                    }
+                    self.binary_register_operation_write0(instruction, |_: &mut Self, x, y| x.wrapping_mul(y));
                 },
                 OpCode::DIV => {
-                    let (reg0, reg1) = Self::get_two_registers(instruction);
-                    if let (Some(reg_value0), Some(reg_value1)) = (Register::from_u8(reg0), Register::from_u8(reg1)) {
-                        let divisor = self.read_user_register_value(reg_value1);
-                        if divisor == 0 {
-                            self.write_error(Error::DivisorNotZero);
-                            self.write_register_value(reg_value0, 0);
-                        } else {
-                            self.write_user_register_value(reg_value0, self.read_user_register_value(reg_value0).wrapping_div(divisor));
-                        }
-                    }
-                    else {
-                        eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
-                        self.write_error(Error::Register);
-                    }
+                    self.binary_register_operation_write0(instruction,
+                        |this: &mut Self, x, y|
+                            if y == 0 {
+                                this.write_error(Error::DivisorNotZero);
+                                0
+                            } else {
+                                x / y
+                            }
+                    );
                 },
                 // Unconditional jumps
                 OpCode::J => {
@@ -407,88 +346,29 @@ impl<InterpreterImpl: Interpreter> VirtualMachine<InterpreterImpl> {
                     self.write_register_value(Register::IP, address.wrapping_sub(4)); // Minus 4 because this will be added after every cycle
                 },
                 OpCode::JZI => {
-                    let (reg, address) = Self::get_register_and_immediate(instruction);
-                    if let Some(reg_value) = Register::from_u8(reg) {
-                        if self.read_user_register_value(reg_value) == 0 {
-                            self.write_register_value(Register::IP, address.wrapping_sub(4));
-                        }
-                    }
-                    else {
-                        eprintln!("Register {:?} does not exists!", reg);
-                        self.write_error(Error::Register);
-                    }
+                    self.unary_check_write_ip(instruction, |this: &mut Self, x| x == 0);
                 },
                 OpCode::JNZI => {
-                    let (reg, address) = Self::get_register_and_immediate(instruction);
-                    if let Some(reg_value) = Register::from_u8(reg) {
-                        if self.read_user_register_value(reg_value) != 0 {
-                            self.write_register_value(Register::IP, address.wrapping_sub(4));
-                        }
-                    }
-                    else {
-                        eprintln!("Register {:?} does not exists!", reg);
-                        self.write_error(Error::Register);
-                    }
+                    self.unary_check_write_ip(instruction, |this: &mut Self, x| x != 0);
                 },
                 OpCode::JLZI => {
-                    let (reg, address) = Self::get_register_and_immediate(instruction);
-                    if let Some(reg_value) = Register::from_u8(reg) {
-                        if i32::from_le_bytes(u32::to_le_bytes(self.read_user_register_value(reg_value))) < 0 {
-                            self.write_register_value(Register::IP, address.wrapping_sub(4));
-                        }
-                    }
-                    else {
-                        eprintln!("Register {:?} does not exists!", reg);
-                        self.write_error(Error::Register);
-                    }
+                    self.unary_check_write_ip(instruction,
+                        |this: &mut Self, x| i32::from_le_bytes(u32::to_le_bytes(x)) < 0
+                    );
                 },
                 OpCode::JGZI => {
-                    let (reg, address) = Self::get_register_and_immediate(instruction);
-                    if let Some(reg_value) = Register::from_u8(reg) {
-                        if i32::from_le_bytes(u32::to_le_bytes(self.read_user_register_value(reg_value))) > 0 {
-                            self.write_register_value(Register::IP, address.wrapping_sub(4));
-                        }
-                    }
-                    else {
-                        eprintln!("Register {:?} does not exists!", reg);
-                        self.write_error(Error::Register);
-                    }
+                    self.unary_check_write_ip(instruction,
+                        |this: &mut Self, x| i32::from_le_bytes(u32::to_le_bytes(x)) > 0
+                    );
                 },
                 OpCode::AND => {
-                    let (reg0, reg1) = Self::get_two_registers(instruction);
-                    if let (Some(reg_value0), Some(reg_value1)) = (Register::from_u8(reg0), Register::from_u8(reg1)) {
-                        let val0 = self.read_user_register_value(reg_value0);
-                        let val1 = self.read_user_register_value(reg_value1);
-                        self.write_user_register_value(reg_value0, val0 & val1);
-                    }
-                    else {
-                        eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
-                        self.write_error(Error::Register);
-                    }
+                    self.binary_register_operation_write0(instruction, |_: &mut Self, x, y| x & y);
                 },
                 OpCode::OR => {
-                    let (reg0, reg1) = Self::get_two_registers(instruction);
-                    if let (Some(reg_value0), Some(reg_value1)) = (Register::from_u8(reg0), Register::from_u8(reg1)) {
-                        let val0 = self.read_user_register_value(reg_value0);
-                        let val1 = self.read_user_register_value(reg_value1);
-                        self.write_user_register_value(reg_value0, val0 | val1);
-                    }
-                    else {
-                        eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
-                        self.write_error(Error::Register);
-                    }
+                    self.binary_register_operation_write0(instruction, |_: &mut Self, x, y| x | y);
                 },
                 OpCode::XOR => {
-                    let (reg0, reg1) = Self::get_two_registers(instruction);
-                    if let (Some(reg_value0), Some(reg_value1)) = (Register::from_u8(reg0), Register::from_u8(reg1)) {
-                        let val0 = self.read_user_register_value(reg_value0);
-                        let val1 = self.read_user_register_value(reg_value1);
-                        self.write_user_register_value(reg_value0, val0 ^ val1);
-                    }
-                    else {
-                        eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
-                        self.write_error(Error::Register);
-                    }
+                    self.binary_register_operation_write0(instruction, |_: &mut Self, x, y| x ^ y);
                 },
                 OpCode::NOT => {
                     let reg = Self::get_registers(instruction);
@@ -502,54 +382,18 @@ impl<InterpreterImpl: Interpreter> VirtualMachine<InterpreterImpl> {
                     }
                 },
                 OpCode::SRL => {
-                    let (reg0, reg1) = Self::get_two_registers(instruction);
-                    if let (Some(reg_value0), Some(reg_value1)) = (Register::from_u8(reg0), Register::from_u8(reg1)) {
-                        let val0 = self.read_user_register_value(reg_value0);
-                        let val1 = self.read_user_register_value(reg_value1);
-                        self.write_user_register_value(reg_value0, val0 >> val1);
-                    }
-                    else {
-                        eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
-                        self.write_error(Error::Register);
-                    }
+                    self.binary_register_operation_write0(instruction, |_: &mut Self, x, y| x >> y);
                 },
                 OpCode::SLL => {
-                    let (reg0, reg1) = Self::get_two_registers(instruction);
-                    if let (Some(reg_value0), Some(reg_value1)) = (Register::from_u8(reg0), Register::from_u8(reg1)) {
-                        let val0 = self.read_user_register_value(reg_value0);
-                        let val1 = self.read_user_register_value(reg_value1);
-                        self.write_user_register_value(reg_value0, val0 << val1);
-                    }
-                    else {
-                        eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
-                        self.write_error(Error::Register);
-                    }
+                    self.binary_register_operation_write0(instruction, |_: &mut Self, x, y| x << y);
                 },
                 OpCode::SRLI => {
-                    let (reg, shift) = Self::get_register_and_immediate(instruction);
-                    if let Some(reg_value) = Register::from_u8(reg) {
-                        let val = self.read_user_register_value(reg_value);
-                        self.write_user_register_value(reg_value, val >> shift);
-                    }
-                    else {
-                        eprintln!("Register {:?} does not exists!", reg);
-                        self.write_error(Error::Register);
-                    }
+                    self.binary_register_and_immediate_operation_write0(instruction,
+                        |_: &mut Self, x, y| x >> y);
                 },
                 OpCode::SLLI => {
-                    let (reg, shift) = Self::get_register_and_immediate(instruction);
-                    if let Some(reg_value) = Register::from_u8(reg) {
-                        let val = self.read_user_register_value(reg_value);
-                        self.write_user_register_value(reg_value, val << shift);
-                    }
-                    else {
-                        eprintln!("Register {:?} does not exists!", reg);
-                        self.write_error(Error::Register);
-                    }
-                },
-                _ => {
-                    eprintln!("Instruction {:?} does not exist!", opcode);
-                    self.write_error(Error::OpCode);
+                    self.binary_register_and_immediate_operation_write0(instruction,
+                        |_: &mut Self, x, y| x << y);
                 }
             }
         }
@@ -558,6 +402,62 @@ impl<InterpreterImpl: Interpreter> VirtualMachine<InterpreterImpl> {
             self.write_error(Error::OpCode);
             return;
         }
+    }
+
+    /// Writes the address - 4 to register $ip, if `unary_op` evaluates to
+    /// true.
+    fn unary_check_write_ip(&mut self, instruction: u32, unary_op: fn (&mut Self, u32) -> bool) {
+      let (reg, imm) = Self::get_register_and_immediate(instruction);
+      if let Some(reg_value) = Register::from_u8(reg) {
+          let val = self.read_user_register_value(reg_value);
+          if unary_op(self, val) {
+            self.write_register_value(Register::IP, imm.wrapping_sub(4));
+          }
+      }
+      else {
+          eprintln!("Register {:?} does not exists!", reg);
+          self.write_error(Error::Register);
+      }
+    }
+
+    fn binary_register_and_immediate_operation_write0(&mut self, instruction: u32, binary_op: fn (&mut Self, u32, u32) -> u32) {
+      let (reg, imm) = Self::get_register_and_immediate(instruction);
+      if let Some(reg_value) = Register::from_u8(reg) {
+          let val = self.read_user_register_value(reg_value);
+          let result = binary_op(self, val, imm);
+          self.write_user_register_value(reg_value, result);
+      }
+      else {
+          eprintln!("Register {:?} does not exists!", reg);
+          self.write_error(Error::Register);
+      }
+    }
+
+    /// Combines both values of the two registers parsed from the instruction with the function
+    /// `binary_op` and writes the result in the first registers
+    fn binary_register_operation_write0(&mut self, instruction: u32, binary_op: fn (&mut Self, u32, u32) -> u32) {
+      let (reg0, reg1) = Self::get_two_registers(instruction);
+      if let (Some(reg_value0), Some(reg_value1)) = (Register::from_u8(reg0), Register::from_u8(reg1)) {
+          let val0 = self.read_user_register_value(reg_value0);
+          let val1 = self.read_user_register_value(reg_value1);
+          let result = binary_op(self, val0, val1);
+          self.write_user_register_value(reg_value0, result);
+      }
+      else {
+          eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
+          self.write_error(Error::Register);
+      }
+    }
+
+    fn binary_register_operation(&mut self, instruction: u32, binary_op: fn (&mut Self, Register, Register)) {
+      let (reg0, reg1) = Self::get_two_registers(instruction);
+      if let (Some(reg_value0), Some(reg_value1)) = (Register::from_u8(reg0), Register::from_u8(reg1)) {
+          let result = binary_op(self, reg_value0, reg_value1);
+      }
+      else {
+          eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
+          self.write_error(Error::Register);
+      }
     }
 
     /// Saves the address of the next instruction in $ra
@@ -937,14 +837,14 @@ mod tests {
             utils::create_instruction_two_registers(OpCode::LW, Register::R0, Register::R2),
             LOAD_0_IN_R1_INSTRUCTION,
             SYSCALLI_EXIT_INSTRUCTION,
-            1032
+            0xFF00FF00
         ];
 
         let interpreter = BinaryInterpreter::new_with_program(&program);
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(0, vm.execute_first());
-        assert_eq!(1032, vm.read_register_value(Register::R0));
+        assert_eq!(0xFF00FF00, vm.read_register_value(Register::R0));
     }
 
     #[test]
