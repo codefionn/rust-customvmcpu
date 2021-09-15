@@ -525,6 +525,28 @@ impl<InterpreterImpl: Interpreter> VirtualMachine<InterpreterImpl> {
                         self.write_error(Error::Register);
                     }
                 },
+                OpCode::SRLI => {
+                    let (reg, shift) = Self::get_register_and_immediate(instruction);
+                    if let Some(reg_value) = Register::from_u8(reg) {
+                        let val = self.read_user_register_value(reg_value);
+                        self.write_user_register_value(reg_value, val >> shift);
+                    }
+                    else {
+                        eprintln!("Register {:?} does not exists!", reg);
+                        self.write_error(Error::Register);
+                    }
+                },
+                OpCode::SLLI => {
+                    let (reg, shift) = Self::get_register_and_immediate(instruction);
+                    if let Some(reg_value) = Register::from_u8(reg) {
+                        let val = self.read_user_register_value(reg_value);
+                        self.write_user_register_value(reg_value, val << shift);
+                    }
+                    else {
+                        eprintln!("Register {:?} does not exists!", reg);
+                        self.write_error(Error::Register);
+                    }
+                },
                 _ => {
                     eprintln!("Instruction {:?} does not exist!", opcode);
                     self.write_error(Error::OpCode);
@@ -1352,6 +1374,42 @@ mod tests {
             SYSCALLI_EXIT_INSTRUCTION,
             0x00FFFF00,
             4,
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(0x0FFFF000, vm.read_register_value(Register::R0));
+    }
+
+    #[test]
+    fn srli() {
+        let program: [u32; 6] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 5 * 4),
+            utils::create_instruction_two_registers(OpCode::LW, Register::R0, Register::R0),
+            utils::create_instruction_register_and_immediate(OpCode::SRLI, Register::R0, 4),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+            0x00FFFF00,
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(0x000FFFF0, vm.read_register_value(Register::R0));
+    }
+
+    #[test]
+    fn slli() {
+        let program: [u32; 6] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 5 * 4),
+            utils::create_instruction_two_registers(OpCode::LW, Register::R0, Register::R0),
+            utils::create_instruction_register_and_immediate(OpCode::SLLI, Register::R0, 4),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+            0x00FFFF00,
         ];
 
         let interpreter = BinaryInterpreter::new_with_program(&program);

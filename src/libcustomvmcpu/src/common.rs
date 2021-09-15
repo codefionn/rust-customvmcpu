@@ -105,6 +105,10 @@ pub enum OpCode {
     SRL,
     /// Perform logical shift left (<<)
     SLL,
+    /// Perform logical shift right (>>) with immediate
+    SRLI,
+    /// Perform logical shift left (<<) with immediate
+    SLLI,
 }
 
 pub const LAST_OP_CODE: OpCode = OpCode::SYSCALLI;

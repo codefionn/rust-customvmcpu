@@ -178,10 +178,16 @@ or $x, $y
 xor $x, $y
 
 // Shift right logical, (>>)
-srl
+srl $x, $y
 
 // Shift left logical, (<<)
-sll
+sll $x, $y
+
+// Shift right logical, (>>) with immediate
+srli $x, %y
+
+// Shift left logical, (<<) with immediate
+slli $x, %y
 
 // Bitwise not x and store result in x
 not $x
