@@ -101,6 +101,10 @@ pub enum OpCode {
     JGZI,
     /// Perform a system call
     SYSCALLI,
+    /// Perform logical shift right (>>)
+    SRL,
+    /// Perform logical shift left (<<)
+    SLL,
 }
 
 pub const LAST_OP_CODE: OpCode = OpCode::SYSCALLI;

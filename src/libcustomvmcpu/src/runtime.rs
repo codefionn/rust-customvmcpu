@@ -454,6 +454,77 @@ impl<InterpreterImpl: Interpreter> VirtualMachine<InterpreterImpl> {
                         self.write_error(Error::Register);
                     }
                 },
+                OpCode::AND => {
+                    let (reg0, reg1) = Self::get_two_registers(instruction);
+                    if let (Some(reg_value0), Some(reg_value1)) = (Register::from_u8(reg0), Register::from_u8(reg1)) {
+                        let val0 = self.read_user_register_value(reg_value0);
+                        let val1 = self.read_user_register_value(reg_value1);
+                        self.write_user_register_value(reg_value0, val0 & val1);
+                    }
+                    else {
+                        eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
+                        self.write_error(Error::Register);
+                    }
+                },
+                OpCode::OR => {
+                    let (reg0, reg1) = Self::get_two_registers(instruction);
+                    if let (Some(reg_value0), Some(reg_value1)) = (Register::from_u8(reg0), Register::from_u8(reg1)) {
+                        let val0 = self.read_user_register_value(reg_value0);
+                        let val1 = self.read_user_register_value(reg_value1);
+                        self.write_user_register_value(reg_value0, val0 | val1);
+                    }
+                    else {
+                        eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
+                        self.write_error(Error::Register);
+                    }
+                },
+                OpCode::XOR => {
+                    let (reg0, reg1) = Self::get_two_registers(instruction);
+                    if let (Some(reg_value0), Some(reg_value1)) = (Register::from_u8(reg0), Register::from_u8(reg1)) {
+                        let val0 = self.read_user_register_value(reg_value0);
+                        let val1 = self.read_user_register_value(reg_value1);
+                        self.write_user_register_value(reg_value0, val0 ^ val1);
+                    }
+                    else {
+                        eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
+                        self.write_error(Error::Register);
+                    }
+                },
+                OpCode::NOT => {
+                    let reg = Self::get_registers(instruction);
+                    if let Some(reg_value) = Register::from_u8(reg) {
+                        let val = self.read_user_register_value(reg_value);
+                        self.write_user_register_value(reg_value, !val);
+                    }
+                    else {
+                        eprintln!("Register {:?} does not exists!", reg);
+                        self.write_error(Error::Register);
+                    }
+                },
+                OpCode::SRL => {
+                    let (reg0, reg1) = Self::get_two_registers(instruction);
+                    if let (Some(reg_value0), Some(reg_value1)) = (Register::from_u8(reg0), Register::from_u8(reg1)) {
+                        let val0 = self.read_user_register_value(reg_value0);
+                        let val1 = self.read_user_register_value(reg_value1);
+                        self.write_user_register_value(reg_value0, val0 >> val1);
+                    }
+                    else {
+                        eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
+                        self.write_error(Error::Register);
+                    }
+                },
+                OpCode::SLL => {
+                    let (reg0, reg1) = Self::get_two_registers(instruction);
+                    if let (Some(reg_value0), Some(reg_value1)) = (Register::from_u8(reg0), Register::from_u8(reg1)) {
+                        let val0 = self.read_user_register_value(reg_value0);
+                        let val1 = self.read_user_register_value(reg_value1);
+                        self.write_user_register_value(reg_value0, val0 << val1);
+                    }
+                    else {
+                        eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
+                        self.write_error(Error::Register);
+                    }
+                },
                 _ => {
                     eprintln!("Instruction {:?} does not exist!", opcode);
                     self.write_error(Error::OpCode);
@@ -1160,5 +1231,133 @@ mod tests {
 
         assert_eq!(0, vm.execute_first());
         assert_eq!(32, vm.read_register_value(Register::R0));
+    }
+
+    #[test]
+    fn and() {
+        let program: [u32; 9] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 7 * 4),
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R2, 8 * 4),
+            utils::create_instruction_two_registers(OpCode::LW, Register::R0, Register::R0),
+            utils::create_instruction_two_registers(OpCode::LW, Register::R2, Register::R2),
+            utils::create_instruction_two_registers(OpCode::AND, Register::R0, Register::R2),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+            0x0000FFFF,
+            0xFFFFA000,
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(0x0000A000, vm.read_register_value(Register::R0));
+    }
+
+    #[test]
+    fn or() {
+        let program: [u32; 9] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 7 * 4),
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R2, 8 * 4),
+            utils::create_instruction_two_registers(OpCode::LW, Register::R0, Register::R0),
+            utils::create_instruction_two_registers(OpCode::LW, Register::R2, Register::R2),
+            utils::create_instruction_two_registers(OpCode::OR, Register::R0, Register::R2),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+            0x00000FFF,
+            0xFFF00000,
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(0xFFF00FFF, vm.read_register_value(Register::R0));
+    }
+
+    #[test]
+    fn xor() {
+        let program: [u32; 9] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 7 * 4),
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R2, 8 * 4),
+            utils::create_instruction_two_registers(OpCode::LW, Register::R0, Register::R0),
+            utils::create_instruction_two_registers(OpCode::LW, Register::R2, Register::R2),
+            utils::create_instruction_two_registers(OpCode::XOR, Register::R0, Register::R2),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+            0x0000FFFF,
+            0xFFFFF000,
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(0xFFFF0FFF, vm.read_register_value(Register::R0));
+    }
+
+    #[test]
+    fn not() {
+        let program: [u32; 10] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 8 * 4),
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R2, 9 * 4),
+            utils::create_instruction_two_registers(OpCode::LW, Register::R0, Register::R0),
+            utils::create_instruction_two_registers(OpCode::LW, Register::R2, Register::R2),
+            utils::create_instruction_register(OpCode::NOT, Register::R0),
+            utils::create_instruction_register(OpCode::NOT, Register::R2),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+            0x00000000,
+            0xFFFFFFF0,
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(0xFFFFFFFF, vm.read_register_value(Register::R0));
+        assert_eq!(0x0000000F, vm.read_register_value(Register::R2));
+    }
+
+    #[test]
+    fn srl() {
+        let program: [u32; 9] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 7 * 4),
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R2, 8 * 4),
+            utils::create_instruction_two_registers(OpCode::LW, Register::R0, Register::R0),
+            utils::create_instruction_two_registers(OpCode::LW, Register::R2, Register::R2),
+            utils::create_instruction_two_registers(OpCode::SRL, Register::R0, Register::R2),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+            0x00FFFF00,
+            4,
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(0x000FFFF0, vm.read_register_value(Register::R0));
+    }
+
+    #[test]
+    fn sll() {
+        let program: [u32; 9] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 7 * 4),
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R2, 8 * 4),
+            utils::create_instruction_two_registers(OpCode::LW, Register::R0, Register::R0),
+            utils::create_instruction_two_registers(OpCode::LW, Register::R2, Register::R2),
+            utils::create_instruction_two_registers(OpCode::SLL, Register::R0, Register::R2),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+            0x00FFFF00,
+            4,
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(0x0FFFF000, vm.read_register_value(Register::R0));
     }
 }

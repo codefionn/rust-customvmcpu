@@ -177,6 +177,12 @@ or $x, $y
 // Bitwise xor x y and store result xor
 xor $x, $y
 
+// Shift right logical, (>>)
+srl
+
+// Shift left logical, (<<)
+sll
+
 // Bitwise not x and store result in x
 not $x
 
@@ -240,3 +246,5 @@ The following system calls are supported
 - jlzi: 0x15
 - jgzi: 0x16
 - syscalli: 0x17
+- srl: 0x18
+- sll: 0x19
