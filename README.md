@@ -254,3 +254,5 @@ The following system calls are supported
 - syscalli: 0x17
 - srl: 0x18
 - sll: 0x19
+- srli: 0x20
+- slli: 0x21
