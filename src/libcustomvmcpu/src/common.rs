@@ -24,7 +24,7 @@ use num_derive::FromPrimitive;
 #[repr(u8)]
 pub enum Register
 {
-    // Generel purpose registers
+    /// Generel purpose registers
     R0,
     R1,
     R2,
@@ -34,16 +34,16 @@ pub enum Register
     R6,
     R7,
 
-    // Stack pointer
+    /// Stack pointer
     SP,
 
-    // Instruction pointer
+    /// Instruction pointer - read-only
     IP,
 
-    // Return instruction pointer (return-address)
+    /// Return instruction pointer (return-address) - read-only
     RA,
 
-    // Error code register
+    /// Error code register - read-only
     ERR,
 }
 
@@ -53,41 +53,204 @@ pub const LAST_REGISTER: Register = Register::ERR;
 #[repr(u8)]
 pub enum OpCode {
     /// Copy from register to register
+    ///
+    /// # Example
+    ///
+    /// Copy value from register `$r0` to register `$r1`:
+    ///
+    /// ```
+    /// cpy $r0, $r1
+    /// ```
     CPY,
     /// Load from memory into register
+    ///
+    /// # Example
+    ///
+    /// Copy 32-bit of memory at value from register `$r1` into register `$r0`:
+    ///
+    /// ```
+    /// lw $r0, $r1
+    /// ```
+    ///
+    /// This only works when the left register is not read-only
     LW,
+
     /// Store register into memory
+    ///
+    /// # Example
+    ///
+    /// Copy 32-bit value of register `$r0` into memory at value of register `$r1`:
+    ///
+    /// ```
+    /// sw $r0, $r1
+    /// ```
     SW,
+
     /// Load from memory into register
+    ///
+    /// # Example
+    ///
+    /// Copy 16-bit of memory at value from register `$r1` into register `$r0`:
+    ///
+    /// ````
+    /// lh $r0 , $r1
+    /// ```
     LH,
+
     /// Store register into memory
+    ///
+    /// # Example
+    ///
+    /// Copy 16-bit value of register `$r0` into memory at value of register `$r1`:
+    ///
+    /// ```
+    /// sh $r0, $r1
+    /// ```
     SH,
+
     /// Load from memory into register
+    ///
+    /// # Example
+    ///
+    /// Load 8-bit of memory at value from register `$r1` into register `$r0`:
+    ///
+    /// ```
+    /// lb $r0, $r1
+    /// ```
     LB,
-    /// Store register into memory
+
+    /// Store register into memor
+    ///
+    /// # Example
+    ///
+    /// Copy 8-bit value of register `$r0` into memory at value of register `$r1`:
+    ///
+    /// ```
+    /// sh $r0, $r1
+    /// ```y
     SB,
+
     /// Load from immediate value (value is in instruction)
+    ///
+    /// # Example
+    ///
+    /// Copy immediate value into register `$r0`:
+    ///
+    /// ```
+    /// li $r0, 2048
+    /// ```
     LI,
+
     /// Add values of two registers
+    ///
+    /// # Example
+    /// 
+    /// Add registers `$r0` and `$r1` together and store result in `$r0`:
+    ///
+    /// ```
+    /// li $r0, $r1
+    /// ```
     ADD,
+
     /// Subtract values of two registers
+    ///
+    /// # Example
+    ///
+    /// Subtract `$r1` from `$r0` and store result in `$r0`:
+    ///
+    /// ```
+    /// sub $r0, $r1
+    /// ```
     SUB,
+
     /// Multiply values of two registers
+    ///
+    /// # Example
+    ///
+    /// Multiple `$r0` and `$r1` and store result in `$r0`:
+    ///
+    /// ```
+    /// mul $r0, $r1
+    /// ```
     MUL,
+
     /// Divide values of two registers
+    ///
+    /// # Example
+    ///
+    /// Divide `$r0` through `$r1` and store result in `$r0`:
+    ///
+    /// ```
+    /// div $r0, $r1
+    /// ```
     DIV,
+
     /// Perform logical and on two registers
+    ///
+    /// # Example
+    ///
+    /// Perform logical and on `$r0` and `$r0` and store result in `$r0`:
+    ///
+    /// ```
+    /// and $r0, $r1
+    /// ```
     AND,
+
     /// Perform logical or on two registers
+    ///
+    /// # Example
+    ///
+    /// Perform logical or on `$r0` and `$r0` and store result in `$r0`:
+    ///
+    /// ```
+    /// or $r0, $r1
+    /// ```
     OR,
+
     /// Perform logical xor on two registers
+    ///
+    /// # Example
+    ///
+    /// Perform logical xor on `$r0` and `$r0` and store result in `$r0`:
+    ///
+    /// ```
+    /// xor $r0, $r1
+    /// ```
     XOR,
+
     /// Perform logical not on on register
+    ///
+    /// # Example
+    ///
+    /// Perform logical not on `$r0` and store result in `$r0`:
+    ///
+    /// ```
+    /// not $r0
+    /// ```
     NOT,
+
     /// Perform unconditional jump to memory at register value
+    ///
+    /// # Example
+    ///
+    /// Perform unconditional jump to value of result `$r0`:
+    ///
+    /// ```
+    /// j $r0
+    /// ```
     J,
+
     /// Perform unconditional jump to memory at immediate value
+    ///
+    /// # Example
+    ///
+    /// Perform unconditional jump to memory at immediate value 16
+    ///
+    /// ```
+    /// ji 16
+    /// ```
     JI,
+
     /// Perform unconditional jump to memory at immediate value and store
     /// next instruction address (current $ip) into register $ra
     JIL,
@@ -100,14 +263,58 @@ pub enum OpCode {
     /// Perform conditional jump to memory at immediate value
     JGZI,
     /// Perform a system call
+    ///
+    /// # Example
+    ///
+    /// Shutdown the virtual machine:
+    ///
+    /// ```
+    /// syscalli 0
+    /// ```
     SYSCALLI,
+
     /// Perform logical shift right (>>)
+    ///
+    /// # Example
+    ///
+    /// Shift value of registery `$r0` x values from register `$r1` to right
+    ///
+    /// ```
+    /// srl $r0, $r1
+    /// ```
     SRL,
+
     /// Perform logical shift left (<<)
+    ///
+    /// # Example
+    ///
+    /// Shift value of registery `$r0` x values from register `$r1` to left
+    ///
+    /// ```
+    /// sll $r0, $r1
+    /// ```
     SLL,
+
     /// Perform logical shift right (>>) with immediate
+    ///
+    /// # Example
+    ///
+    /// Shift value of registery `$r0` 4 values from register `$r1` to right
+    ///
+    /// ```
+    /// srli $r0, 4
+    /// ```
     SRLI,
+
     /// Perform logical shift left (<<) with immediate
+    ///
+    /// # Example
+    ///
+    /// Shift value of registery `$r0` 4 values from register `$r1` to left
+    ///
+    /// ```
+    /// slli $r0, 4
+    /// ```
     SLLI,
 }
 
@@ -120,13 +327,26 @@ pub enum Error {
     /// No error occured
     NoError,
 
-    /// Opcode of instruction is invalid
+    /// Opcode of instruction is invalid (Operation code)
+    /// 
+    /// # Example
+    ///
+    /// The instruction `0xFF000000` (OpCode is is `0x00`) is invalid.
     OpCode,
 
     /// Invalid register
+    ///
+    /// # Example
+    ///
+    /// The instruction `0x1000000F` uses the register `0x0F`, which doesn't
+    /// exist.
     Register,
 
     /// Invalid syscall
+    ///
+    /// # Example
+    ///
+    /// The instruction `0x170000FF` used the syscall 255, which is invalid.
     Syscall,
 
     /// Memory (Out-of-bounds)
