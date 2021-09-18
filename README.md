@@ -168,6 +168,7 @@ mul $x, $y
 // If $y error, $x will also be overwritten with 0
 div $x, $y
 
+// --- Bitshift/logical instructions ---
 // Bitwise and x y and store result in x
 and $x, $y
 

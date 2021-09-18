@@ -58,9 +58,9 @@ pub enum OpCode {
     ///
     /// Copy value from register `$r0` to register `$r1`:
     ///
-    /// ```
+    /// 
     /// cpy $r0, $r1
-    /// ```
+    /// 
     CPY,
     /// Load from memory into register
     ///
@@ -68,9 +68,9 @@ pub enum OpCode {
     ///
     /// Copy 32-bit of memory at value from register `$r1` into register `$r0`:
     ///
-    /// ```
+    /// 
     /// lw $r0, $r1
-    /// ```
+    /// 
     ///
     /// This only works when the left register is not read-only
     LW,
@@ -81,9 +81,9 @@ pub enum OpCode {
     ///
     /// Copy 32-bit value of register `$r0` into memory at value of register `$r1`:
     ///
-    /// ```
+    /// 
     /// sw $r0, $r1
-    /// ```
+    /// 
     SW,
 
     /// Load from memory into register
@@ -92,9 +92,9 @@ pub enum OpCode {
     ///
     /// Copy 16-bit of memory at value from register `$r1` into register `$r0`:
     ///
-    /// ````
+    /// `
     /// lh $r0 , $r1
-    /// ```
+    /// 
     LH,
 
     /// Store register into memory
@@ -103,9 +103,9 @@ pub enum OpCode {
     ///
     /// Copy 16-bit value of register `$r0` into memory at value of register `$r1`:
     ///
-    /// ```
+    /// 
     /// sh $r0, $r1
-    /// ```
+    /// 
     SH,
 
     /// Load from memory into register
@@ -114,9 +114,9 @@ pub enum OpCode {
     ///
     /// Load 8-bit of memory at value from register `$r1` into register `$r0`:
     ///
-    /// ```
+    /// 
     /// lb $r0, $r1
-    /// ```
+    /// 
     LB,
 
     /// Store register into memor
@@ -125,9 +125,9 @@ pub enum OpCode {
     ///
     /// Copy 8-bit value of register `$r0` into memory at value of register `$r1`:
     ///
-    /// ```
+    /// 
     /// sh $r0, $r1
-    /// ```y
+    /// y
     SB,
 
     /// Load from immediate value (value is in instruction)
@@ -136,9 +136,9 @@ pub enum OpCode {
     ///
     /// Copy immediate value into register `$r0`:
     ///
-    /// ```
+    /// 
     /// li $r0, 2048
-    /// ```
+    /// 
     LI,
 
     /// Add values of two registers
@@ -147,9 +147,9 @@ pub enum OpCode {
     /// 
     /// Add registers `$r0` and `$r1` together and store result in `$r0`:
     ///
-    /// ```
+    /// 
     /// li $r0, $r1
-    /// ```
+    /// 
     ADD,
 
     /// Subtract values of two registers
@@ -158,9 +158,9 @@ pub enum OpCode {
     ///
     /// Subtract `$r1` from `$r0` and store result in `$r0`:
     ///
-    /// ```
+    /// 
     /// sub $r0, $r1
-    /// ```
+    /// 
     SUB,
 
     /// Multiply values of two registers
@@ -169,9 +169,9 @@ pub enum OpCode {
     ///
     /// Multiple `$r0` and `$r1` and store result in `$r0`:
     ///
-    /// ```
+    /// 
     /// mul $r0, $r1
-    /// ```
+    /// 
     MUL,
 
     /// Divide values of two registers
@@ -180,9 +180,9 @@ pub enum OpCode {
     ///
     /// Divide `$r0` through `$r1` and store result in `$r0`:
     ///
-    /// ```
+    /// 
     /// div $r0, $r1
-    /// ```
+    /// 
     DIV,
 
     /// Perform logical and on two registers
@@ -191,9 +191,9 @@ pub enum OpCode {
     ///
     /// Perform logical and on `$r0` and `$r0` and store result in `$r0`:
     ///
-    /// ```
+    /// 
     /// and $r0, $r1
-    /// ```
+    /// 
     AND,
 
     /// Perform logical or on two registers
@@ -202,9 +202,9 @@ pub enum OpCode {
     ///
     /// Perform logical or on `$r0` and `$r0` and store result in `$r0`:
     ///
-    /// ```
+    /// 
     /// or $r0, $r1
-    /// ```
+    /// 
     OR,
 
     /// Perform logical xor on two registers
@@ -213,9 +213,9 @@ pub enum OpCode {
     ///
     /// Perform logical xor on `$r0` and `$r0` and store result in `$r0`:
     ///
-    /// ```
+    /// 
     /// xor $r0, $r1
-    /// ```
+    /// 
     XOR,
 
     /// Perform logical not on on register
@@ -224,9 +224,9 @@ pub enum OpCode {
     ///
     /// Perform logical not on `$r0` and store result in `$r0`:
     ///
-    /// ```
+    /// 
     /// not $r0
-    /// ```
+    /// 
     NOT,
 
     /// Perform unconditional jump to memory at register value
@@ -235,9 +235,9 @@ pub enum OpCode {
     ///
     /// Perform unconditional jump to value of result `$r0`:
     ///
-    /// ```
+    /// 
     /// j $r0
-    /// ```
+    /// 
     J,
 
     /// Perform unconditional jump to memory at immediate value
@@ -246,9 +246,9 @@ pub enum OpCode {
     ///
     /// Perform unconditional jump to memory at immediate value 16
     ///
-    /// ```
+    /// 
     /// ji 16
-    /// ```
+    /// 
     JI,
 
     /// Perform unconditional jump to memory at immediate value and store
@@ -268,9 +268,9 @@ pub enum OpCode {
     ///
     /// Shutdown the virtual machine:
     ///
-    /// ```
+    /// 
     /// syscalli 0
-    /// ```
+    /// 
     SYSCALLI,
 
     /// Perform logical shift right (>>)
@@ -279,9 +279,9 @@ pub enum OpCode {
     ///
     /// Shift value of registery `$r0` x values from register `$r1` to right
     ///
-    /// ```
+    /// 
     /// srl $r0, $r1
-    /// ```
+    /// 
     SRL,
 
     /// Perform logical shift left (<<)
@@ -290,9 +290,9 @@ pub enum OpCode {
     ///
     /// Shift value of registery `$r0` x values from register `$r1` to left
     ///
-    /// ```
+    /// 
     /// sll $r0, $r1
-    /// ```
+    /// 
     SLL,
 
     /// Perform logical shift right (>>) with immediate
@@ -301,9 +301,9 @@ pub enum OpCode {
     ///
     /// Shift value of registery `$r0` 4 values from register `$r1` to right
     ///
-    /// ```
+    /// 
     /// srli $r0, 4
-    /// ```
+    /// 
     SRLI,
 
     /// Perform logical shift left (<<) with immediate
@@ -312,9 +312,9 @@ pub enum OpCode {
     ///
     /// Shift value of registery `$r0` 4 values from register `$r1` to left
     ///
-    /// ```
+    /// 
     /// slli $r0, 4
-    /// ```
+    /// 
     SLLI,
 }
 
