@@ -452,7 +452,7 @@ impl<InterpreterImpl: Interpreter> VirtualMachine<InterpreterImpl> {
     fn binary_register_operation(&mut self, instruction: u32, binary_op: fn (&mut Self, Register, Register)) {
       let (reg0, reg1) = Self::get_two_registers(instruction);
       if let (Some(reg_value0), Some(reg_value1)) = (Register::from_u8(reg0), Register::from_u8(reg1)) {
-          let result = binary_op(self, reg_value0, reg_value1);
+          binary_op(self, reg_value0, reg_value1);
       }
       else {
           eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
