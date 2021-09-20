@@ -476,7 +476,7 @@ impl<InterpreterImpl: Interpreter> VirtualMachine<InterpreterImpl> {
     /// Check if register is read-only
     fn is_readonly(reg: Register) -> bool {
         return match reg {
-            Register::IP | Register::ERR | Register::RA => true,
+            Register::IP | Register::ERR => true,
             _ => false
         }
     }
@@ -1394,5 +1394,122 @@ mod tests {
         let mut vm = BinaryVirtualMachine::new(interpreter);
         vm.execute(BINARY_INTERPRETER_MEM_SIZE as u32);
         assert_eq!(Error::Memory as u32, vm.read_register_value(Register::ERR));
+    }
+
+    #[test]
+    fn test_no_such_register() {
+        let program: [u32; 1] = [utils::create_instruction_register(OpCode::J, Register::R0) + 0xF]; // Make sure to annihilate the register
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Expected");
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+        vm.execute_first();
+        assert_eq!(Error::Register as u32, vm.read_register_value(Register::ERR));
+    }
+
+    #[test]
+    fn test_no_such_register_write_register() {
+        let program: [u32; 1] = [utils::create_instruction_two_registers(OpCode::CPY, Register::R0, Register::R1) + 0xE]; // Make sure to annihilate the register
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Expected");
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+        vm.execute_first();
+        assert_eq!(Error::Register as u32, vm.read_register_value(Register::ERR));
+
+        // test binary_register_operation_write0
+        let program: [u32; 1] = [
+            utils::create_instruction_two_registers(OpCode::CPY, Register::R0, Register::R1)
+                + utils::create_instruction_two_registers(OpCode::CPY, Register::R1, Register::R0) * 0xF // sophisticated bs
+        ]; // Make sure to annihilate the register
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Expected");
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+        vm.execute_first();
+        assert_eq!(Error::Register as u32, vm.read_register_value(Register::ERR));
+    }
+
+    #[test]
+    fn test_no_such_register_biop_write() {
+        let program: [u32; 1] = [utils::create_instruction_two_registers(OpCode::ADD, Register::R0, Register::R1) + 0xE]; // Make sure to annihilate the register
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Expected");
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+        vm.execute_first();
+        assert_eq!(Error::Register as u32, vm.read_register_value(Register::ERR));
+
+        // test binary_register_operation_write0
+        let program: [u32; 1] = [
+            utils::create_instruction_two_registers(OpCode::ADD, Register::R0, Register::R1)
+                + utils::create_instruction_two_registers(OpCode::CPY, Register::R1, Register::R0) * 0xF // sophisticated bs
+        ]; // Make sure to annihilate the register
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Expected");
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+        vm.execute_first();
+        assert_eq!(Error::Register as u32, vm.read_register_value(Register::ERR));
+
+        let program: [u32; 1] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 123)
+                + utils::create_instruction_two_registers(OpCode::CPY, Register::R1, Register::R0) * 0xF // sophisticated bs
+        ]; // Make sure to annihilate the register
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Expected");
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+        vm.execute_first();
+        assert_eq!(Error::Register as u32, vm.read_register_value(Register::ERR));
+
+        // test binary_register_and_immediate_operation_write0
+        let program: [u32; 1] = [
+            utils::create_instruction_register_and_immediate(OpCode::SRLI, Register::R0, 123)
+                + utils::create_instruction_two_registers(OpCode::CPY, Register::R1, Register::R0) * 0xF // sophisticated bs
+        ]; // Make sure to annihilate the register
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Expected");
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+        vm.execute_first();
+        assert_eq!(Error::Register as u32, vm.read_register_value(Register::ERR));
+    }
+
+    #[test]
+    fn test_no_such_register_check_write_ip() {
+        let program: [u32; 1] = [
+            utils::create_instruction_register_and_immediate(OpCode::JGZI, Register::R0, 4)
+                + utils::create_instruction_two_registers(OpCode::CPY, Register::R1, Register::R0) * 0xF // sophisticated bs
+        ]; // Make sure to annihilate the register
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Expected");
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+        vm.execute_first();
+        assert_eq!(Error::Register as u32, vm.read_register_value(Register::ERR));
+    }
+
+    #[test]
+    fn test_cannot_write_register() {
+        let program: [u32; 1] = [utils::create_instruction_two_registers(OpCode::CPY, Register::IP, Register::R0)];
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Expected");
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+        vm.execute_first();
+        assert_eq!(Error::ReadonlyRegister as u32, vm.read_register_value(Register::ERR));
+
+        let program: [u32; 1] = [utils::create_instruction_two_registers(OpCode::CPY, Register::ERR, Register::R0)];
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Expected");
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+        vm.execute_first();
+        assert_eq!(Error::ReadonlyRegister as u32, vm.read_register_value(Register::ERR));
+    }
+
+    #[test]
+    fn test_can_write_registers() {
+        for register in [Register::R0, Register::R1, Register::R2, Register::R3, Register::R4, Register::R5, Register::R6, Register::R7, Register::RA, Register::SP] {
+            let program: [u32; 3] = [
+                utils::create_instruction_two_registers(OpCode::CPY, register, Register::IP),
+                LOAD_0_IN_R1_INSTRUCTION,
+                SYSCALLI_EXIT_INSTRUCTION
+            ];
+            let interpreter = BinaryInterpreter::new_with_program(&program).expect("Expected");
+            let mut vm = BinaryVirtualMachine::new(interpreter);
+            vm.execute_first();
+            assert_eq!(Error::NoError as u32, vm.read_register_value(Register::ERR));
+        }
+    }
+
+    #[test]
+    fn test_invalid_syscall() {
+        let program: [u32; 1] = [utils::create_instruction_immediate(OpCode::SYSCALLI, 0xFF)];
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Expected");
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+        vm.execute_first();
+        assert_eq!(Error::Syscall as u32, vm.read_register_value(Register::ERR));
     }
 }
