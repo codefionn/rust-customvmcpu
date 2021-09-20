@@ -1698,4 +1698,11 @@ mod tests {
         vm.execute_first();
         assert_eq!(Error::OpCode as u32, vm.read_register_value(Register::ERR));
     }
+
+    #[test]
+    fn test_for_error() {
+        assert_eq!(Error::NoError, Error::NoError);
+        assert_eq!(Error::ReadonlyRegister, Error::ReadonlyRegister);
+        assert_ne!(Error::ReadonlyRegister, Error::NoError);
+    }
 }
