@@ -1475,6 +1475,17 @@ mod tests {
     }
 
     #[test]
+    fn test_no_such_register_not() {
+        let program: [u32; 1] = [
+            utils::create_instruction_register(OpCode::NOT, Register::R0) + 0xF
+        ]; // Make sure to annihilate the register
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Expected");
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+        vm.execute_first();
+        assert_eq!(Error::Register as u32, vm.read_register_value(Register::ERR));
+    }
+
+    #[test]
     fn test_cannot_write_register() {
         let program: [u32; 1] = [utils::create_instruction_two_registers(OpCode::CPY, Register::IP, Register::R0)];
         let interpreter = BinaryInterpreter::new_with_program(&program).expect("Expected");
@@ -1511,5 +1522,180 @@ mod tests {
         let mut vm = BinaryVirtualMachine::new(interpreter);
         vm.execute_first();
         assert_eq!(Error::Syscall as u32, vm.read_register_value(Register::ERR));
+    }
+
+    #[test]
+    fn lw_edge() {
+        let program: [u32; 4] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, BINARY_INTERPRETER_MEM_SIZE as u32 - 4),
+            utils::create_instruction_two_registers(OpCode::LW, Register::R0, Register::R0),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION
+        ];
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Expected");
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+        vm.execute_first();
+        assert_eq!(Error::NoError as u32, vm.read_register_value(Register::ERR));
+    }
+
+    #[test]
+    fn lh_edge() {
+        let program: [u32; 4] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, BINARY_INTERPRETER_MEM_SIZE as u32 - 2),
+            utils::create_instruction_two_registers(OpCode::LH, Register::R0, Register::R0),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION
+        ];
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Expected");
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+        vm.execute_first();
+        assert_eq!(Error::NoError as u32, vm.read_register_value(Register::ERR));
+    }
+
+    #[test]
+    fn lb_edge() {
+        let program: [u32; 4] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, BINARY_INTERPRETER_MEM_SIZE as u32 - 1),
+            utils::create_instruction_two_registers(OpCode::LB, Register::R0, Register::R0),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION
+        ];
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Expected");
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+        vm.execute_first();
+        assert_eq!(Error::NoError as u32, vm.read_register_value(Register::ERR));
+    }
+
+    #[test]
+    fn lw_out_of_bounds() {
+        for i in 0..3 { // 32-bit = 4-byte
+            let program: [u32; 2] = [
+                utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, BINARY_INTERPRETER_MEM_SIZE as u32 - i),
+                utils::create_instruction_two_registers(OpCode::LW, Register::R0, Register::R0)
+            ];
+            let interpreter = BinaryInterpreter::new_with_program(&program).expect("Expected");
+            let mut vm = BinaryVirtualMachine::new(interpreter);
+            vm.execute_first();
+            assert_eq!(Error::Memory as u32, vm.read_register_value(Register::ERR));
+        }
+    }
+
+    #[test]
+    fn lh_out_of_bounds() {
+        for i in 0..1 { // 16-bit = 2-byte
+            let program: [u32; 2] = [
+                utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, BINARY_INTERPRETER_MEM_SIZE as u32 - i),
+                utils::create_instruction_two_registers(OpCode::LH, Register::R0, Register::R0)
+            ];
+            let interpreter = BinaryInterpreter::new_with_program(&program).expect("Expected");
+            let mut vm = BinaryVirtualMachine::new(interpreter);
+            vm.execute_first();
+            assert_eq!(Error::Memory as u32, vm.read_register_value(Register::ERR));
+        }
+    }
+
+    #[test]
+    fn lb_out_of_bounds() {
+        let program: [u32; 2] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, BINARY_INTERPRETER_MEM_SIZE as u32),
+            utils::create_instruction_two_registers(OpCode::LB, Register::R0, Register::R0)
+        ];
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Expected");
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+        vm.execute_first();
+        assert_eq!(Error::Memory as u32, vm.read_register_value(Register::ERR));
+    }
+
+    #[test]
+    fn sw_edge() {
+        let program: [u32; 4] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, BINARY_INTERPRETER_MEM_SIZE as u32 - 4),
+            utils::create_instruction_two_registers(OpCode::SW, Register::R0, Register::R0),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION
+        ];
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Expected");
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+        vm.execute_first();
+        assert_eq!(Error::NoError as u32, vm.read_register_value(Register::ERR));
+    }
+
+    #[test]
+    fn sh_edge() {
+        let program: [u32; 4] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, BINARY_INTERPRETER_MEM_SIZE as u32 - 2),
+            utils::create_instruction_two_registers(OpCode::SH, Register::R0, Register::R0),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION
+        ];
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Expected");
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+        vm.execute_first();
+        assert_eq!(Error::NoError as u32, vm.read_register_value(Register::ERR));
+    }
+
+    #[test]
+    fn sb_edge() {
+        let program: [u32; 4] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, BINARY_INTERPRETER_MEM_SIZE as u32 - 1),
+            utils::create_instruction_two_registers(OpCode::SB, Register::R0, Register::R0),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION
+        ];
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Expected");
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+        vm.execute_first();
+        assert_eq!(Error::NoError as u32, vm.read_register_value(Register::ERR));
+    }
+
+    #[test]
+    fn sw_out_of_bounds() {
+        for i in 0..3 { // 32-bit = 4-byte
+            let program: [u32; 2] = [
+                utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, BINARY_INTERPRETER_MEM_SIZE as u32 - i),
+                utils::create_instruction_two_registers(OpCode::SW, Register::R0, Register::R0)
+            ];
+            let interpreter = BinaryInterpreter::new_with_program(&program).expect("Expected");
+            let mut vm = BinaryVirtualMachine::new(interpreter);
+            vm.execute_first();
+            assert_eq!(Error::Memory as u32, vm.read_register_value(Register::ERR));
+        }
+    }
+
+    #[test]
+    fn sh_out_of_bounds() {
+        for i in 0..1 { // 16-bit = 2-byte
+            let program: [u32; 2] = [
+                utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, BINARY_INTERPRETER_MEM_SIZE as u32 - i),
+                utils::create_instruction_two_registers(OpCode::SH, Register::R0, Register::R0)
+            ];
+            let interpreter = BinaryInterpreter::new_with_program(&program).expect("Expected");
+            let mut vm = BinaryVirtualMachine::new(interpreter);
+            vm.execute_first();
+            assert_eq!(Error::Memory as u32, vm.read_register_value(Register::ERR));
+        }
+    }
+
+    #[test]
+    fn sb_out_of_bounds() {
+        let program: [u32; 2] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, BINARY_INTERPRETER_MEM_SIZE as u32),
+            utils::create_instruction_two_registers(OpCode::SB, Register::R0, Register::R0)
+        ];
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Expected");
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+        vm.execute_first();
+        assert_eq!(Error::Memory as u32, vm.read_register_value(Register::ERR));
+    }
+
+    #[test]
+    fn test_no_such_instruction() {
+        let program: [u32; 1] = [
+            0xFF000000
+        ];
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Expected");
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+        vm.execute_first();
+        assert_eq!(Error::OpCode as u32, vm.read_register_value(Register::ERR));
     }
 }
