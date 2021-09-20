@@ -25,6 +25,7 @@ name = "libcustomvmcpu"
 version = "0.1.0"
 dependencies = [
  "logos",
+ "more-asserts",
  "num-derive",
  "num-traits",
 ]
@@ -52,6 +53,12 @@ dependencies = [
  "syn",
  "utf8-ranges",
 ]
+
+[[package]]
+name = "more-asserts"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0debeb9fcf88823ea64d64e4a815ab1643f33127d995978e099942ce38f25238"
 
 [[package]]
 name = "num-derive"

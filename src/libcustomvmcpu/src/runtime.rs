@@ -55,6 +55,7 @@ pub trait Interpreter {
 
 pub const BINARY_INTERPRETER_MEM_SIZE: usize = 1024 * 16 * 4;
 
+#[derive(PartialEq, Debug)]
 pub struct BinaryInterpreter {
     memory: [u8; BINARY_INTERPRETER_MEM_SIZE],
 }
@@ -64,27 +65,33 @@ impl BinaryInterpreter {
         BinaryInterpreter { memory: [0; BINARY_INTERPRETER_MEM_SIZE] }
     }
 
-    pub fn new_with_program(program: &[u32]) -> BinaryInterpreter {
+    #[allow(unused_must_use)] // Ignoring is evil, but it's checked upfront
+    pub fn new_with_program(program: &[u32]) -> Option<BinaryInterpreter> {
         let mut result = Self::new();
         if program.len() > result.memory.len() {
-            panic!("Program length must be smaller than memory");
+            eprintln!("Program length must be smaller than memory");
+            return None;
         }
 
         let start_pos: u32 = 0;
         for pos in 0..program.len() {
-            if !result.write_u32(pos as u32 * 4 + start_pos, program[pos]) {
-                panic!("Program length must be smaller than memory");
-            }
+            result.write_u32(pos as u32 * 4 + start_pos, program[pos]);
         }
 
-        result
+        return Some(result);
     }
 
     /// Initializes BinaryInterpreter with initial memory
-    pub fn new_with_initial(initial_memory: &Vec<u8>) -> BinaryInterpreter {
+    pub fn new_with_initial(initial_memory: &Vec<u8>) -> Option<BinaryInterpreter> {
         let mut result = Self::new();
-        result.memory[0..initial_memory.len()].copy_from_slice(&initial_memory);
-        result
+        let slice_from_memory = result.memory.get_mut(0..initial_memory.len());
+        return if let Some(slice_from_memory) = slice_from_memory {
+            slice_from_memory.copy_from_slice(&initial_memory);
+            Some(result)
+        }
+        else {
+            None
+        };
     }
 }
 
@@ -631,7 +638,7 @@ pub type BinaryVirtualMachine = VirtualMachine<BinaryInterpreter>;
 
 #[cfg(test)]
 mod tests {
-    use super::{OpCode, BinaryInterpreter, BinaryVirtualMachine, Interpreter, Register, utils, Error, ERROR_START_NUM};
+    use super::{OpCode, BinaryInterpreter, BinaryVirtualMachine, Interpreter, Register, utils, Error, ERROR_START_NUM, BINARY_INTERPRETER_MEM_SIZE};
 
     const SYSCALLI_EXIT_INSTRUCTION: u32 = u32::to_le((OpCode::SYSCALLI as u32) << 3 * 8);
     const LOAD_0_IN_R1_INSTRUCTION: u32 = utils::create_instruction_register_and_immediate(OpCode::LI, Register::R1, 0);
@@ -644,7 +651,7 @@ mod tests {
     #[test]
     fn syscall_exit() {
         let syscode_inst = SYSCALLI_EXIT_INSTRUCTION;
-        let interpreter = BinaryInterpreter::new_with_program(&[syscode_inst]);
+        let interpreter = BinaryInterpreter::new_with_program(&[syscode_inst]).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(0, vm.read_register_value(Register::IP));
@@ -656,7 +663,7 @@ mod tests {
         let interpreter = BinaryInterpreter::new_with_program(&[
             syscode_inst,
             utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 32)
-        ]);
+        ]).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(0, vm.read_register_value(Register::IP));
@@ -670,7 +677,7 @@ mod tests {
     #[test]
     fn li_r0() {
         let inst = utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 564);
-        let interpreter = BinaryInterpreter::new_with_program(&[inst, LOAD_0_IN_R1_INSTRUCTION, SYSCALLI_EXIT_INSTRUCTION]);
+        let interpreter = BinaryInterpreter::new_with_program(&[inst, LOAD_0_IN_R1_INSTRUCTION, SYSCALLI_EXIT_INSTRUCTION]).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(0, vm.execute_first());
@@ -680,7 +687,7 @@ mod tests {
     #[test]
     fn li_r1() {
         let inst = utils::create_instruction_register_and_immediate(OpCode::LI, Register::R1, 563);
-        let interpreter = BinaryInterpreter::new_with_program(&[inst, SYSCALLI_EXIT_INSTRUCTION]);
+        let interpreter = BinaryInterpreter::new_with_program(&[inst, SYSCALLI_EXIT_INSTRUCTION]).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(563, vm.execute_first());
@@ -690,7 +697,7 @@ mod tests {
     #[test]
     fn li_r7() {
         let inst = utils::create_instruction_register_and_immediate(OpCode::LI, Register::R7, 513);
-        let interpreter = BinaryInterpreter::new_with_program(&[inst, LOAD_0_IN_R1_INSTRUCTION, SYSCALLI_EXIT_INSTRUCTION]);
+        let interpreter = BinaryInterpreter::new_with_program(&[inst, LOAD_0_IN_R1_INSTRUCTION, SYSCALLI_EXIT_INSTRUCTION]).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(0, vm.execute_first());
@@ -700,7 +707,7 @@ mod tests {
     #[test]
     fn li_ip() {
         let inst = utils::create_instruction_register_and_immediate(OpCode::LI, Register::IP, 12);
-        let interpreter = BinaryInterpreter::new_with_program(&[inst, LOAD_0_IN_R1_INSTRUCTION, SYSCALLI_EXIT_INSTRUCTION]);
+        let interpreter = BinaryInterpreter::new_with_program(&[inst, LOAD_0_IN_R1_INSTRUCTION, SYSCALLI_EXIT_INSTRUCTION]).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(ERROR_START_NUM + (Error::ReadonlyRegister as u32), vm.execute_first());
@@ -709,7 +716,7 @@ mod tests {
     #[test]
     fn li_err() {
         let inst = utils::create_instruction_register_and_immediate(OpCode::LI, Register::ERR, 12);
-        let interpreter = BinaryInterpreter::new_with_program(&[inst, LOAD_0_IN_R1_INSTRUCTION, SYSCALLI_EXIT_INSTRUCTION]);
+        let interpreter = BinaryInterpreter::new_with_program(&[inst, LOAD_0_IN_R1_INSTRUCTION, SYSCALLI_EXIT_INSTRUCTION]).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(ERROR_START_NUM + (Error::ReadonlyRegister as u32), vm.execute_first());
@@ -725,7 +732,7 @@ mod tests {
             SYSCALLI_EXIT_INSTRUCTION
         ];
 
-        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(0, vm.execute_first());
@@ -741,7 +748,7 @@ mod tests {
             SYSCALLI_EXIT_INSTRUCTION
         ];
 
-        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(0, vm.execute_first());
@@ -758,7 +765,7 @@ mod tests {
             SYSCALLI_EXIT_INSTRUCTION
         ];
 
-        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(0, vm.execute_first());
@@ -775,7 +782,7 @@ mod tests {
             SYSCALLI_EXIT_INSTRUCTION
         ];
 
-        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(0, vm.execute_first());
@@ -792,7 +799,7 @@ mod tests {
             SYSCALLI_EXIT_INSTRUCTION
         ];
 
-        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(0, vm.execute_first());
@@ -806,7 +813,7 @@ mod tests {
             SYSCALLI_EXIT_INSTRUCTION
         ];
 
-        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(0, vm.execute_first());
@@ -823,7 +830,7 @@ mod tests {
           SYSCALLI_EXIT_INSTRUCTION
       ];
 
-      let interpreter = BinaryInterpreter::new_with_program(&program);
+      let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
       let mut vm = BinaryVirtualMachine::new(interpreter);
 
       assert_eq!(ERROR_START_NUM + Error::DivisorNotZero as u32, vm.execute_first());
@@ -840,7 +847,7 @@ mod tests {
             0xFF00FF00
         ];
 
-        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(0, vm.execute_first());
@@ -857,7 +864,7 @@ mod tests {
             SYSCALLI_EXIT_INSTRUCTION,
         ];
 
-        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(0, vm.execute_first());
@@ -874,7 +881,7 @@ mod tests {
             1032 // Will be stored in [0] and [1] of integer 0124, because little endian
         ];
 
-        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(0, vm.execute_first());
@@ -891,7 +898,7 @@ mod tests {
             SYSCALLI_EXIT_INSTRUCTION,
         ];
 
-        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(0, vm.execute_first());
@@ -908,7 +915,7 @@ mod tests {
             234 // Will be stored in [0] and [1] of integer 0124, because little endian
         ];
 
-        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(0, vm.execute_first());
@@ -925,7 +932,7 @@ mod tests {
             SYSCALLI_EXIT_INSTRUCTION,
         ];
 
-        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(0, vm.execute_first());
@@ -942,7 +949,7 @@ mod tests {
             1024 + 234 // Will be stored in [0] and [1] of integer 0124, because little endian
         ];
 
-        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(0, vm.execute_first());
@@ -959,7 +966,7 @@ mod tests {
             SYSCALLI_EXIT_INSTRUCTION,
         ];
 
-        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(0, vm.execute_first());
@@ -979,7 +986,7 @@ mod tests {
             SYSCALLI_EXIT_INSTRUCTION,
         ];
 
-        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(0, vm.execute_first());
@@ -997,7 +1004,7 @@ mod tests {
             SYSCALLI_EXIT_INSTRUCTION,
         ];
 
-        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(0, vm.execute_first());
@@ -1017,7 +1024,7 @@ mod tests {
             SYSCALLI_EXIT_INSTRUCTION,
         ];
 
-        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(0, vm.execute_first());
@@ -1036,7 +1043,7 @@ mod tests {
             SYSCALLI_EXIT_INSTRUCTION,
         ];
 
-        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(0, vm.execute_first());
@@ -1055,7 +1062,7 @@ mod tests {
             SYSCALLI_EXIT_INSTRUCTION,
         ];
 
-        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(0, vm.execute_first());
@@ -1073,7 +1080,7 @@ mod tests {
             u32::from_le_bytes(i32::to_le_bytes(-1))
         ];
 
-        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(0, vm.execute_first());
@@ -1089,7 +1096,7 @@ mod tests {
             SYSCALLI_EXIT_INSTRUCTION,
         ];
 
-        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(0, vm.execute_first());
@@ -1110,7 +1117,7 @@ mod tests {
             u32::from_le_bytes(i32::to_le_bytes(-1))
         ];
 
-        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(0, vm.execute_first());
@@ -1129,7 +1136,7 @@ mod tests {
             SYSCALLI_EXIT_INSTRUCTION,
         ];
 
-        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(0, vm.execute_first());
@@ -1148,7 +1155,7 @@ mod tests {
             SYSCALLI_EXIT_INSTRUCTION,
         ];
 
-        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(0, vm.execute_first());
@@ -1169,7 +1176,7 @@ mod tests {
             0xFFFFA000,
         ];
 
-        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(0, vm.execute_first());
@@ -1190,7 +1197,7 @@ mod tests {
             0xFFF00000,
         ];
 
-        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(0, vm.execute_first());
@@ -1211,7 +1218,7 @@ mod tests {
             0xFFFFF000,
         ];
 
-        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(0, vm.execute_first());
@@ -1233,7 +1240,7 @@ mod tests {
             0xFFFFFFF0,
         ];
 
-        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(0, vm.execute_first());
@@ -1255,7 +1262,7 @@ mod tests {
             4,
         ];
 
-        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(0, vm.execute_first());
@@ -1276,7 +1283,7 @@ mod tests {
             4,
         ];
 
-        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(0, vm.execute_first());
@@ -1294,7 +1301,7 @@ mod tests {
             0x00FFFF00,
         ];
 
-        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(0, vm.execute_first());
@@ -1312,10 +1319,80 @@ mod tests {
             0x00FFFF00,
         ];
 
-        let interpreter = BinaryInterpreter::new_with_program(&program);
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
         let mut vm = BinaryVirtualMachine::new(interpreter);
 
         assert_eq!(0, vm.execute_first());
         assert_eq!(0x0FFFF000, vm.read_register_value(Register::R0));
+    }
+
+    #[test]
+    fn new_with_program_overflow() {
+        let program = vec!(0; BINARY_INTERPRETER_MEM_SIZE + 100);
+        let interpreter = BinaryInterpreter::new_with_program(&program);
+        assert_eq!(None, interpreter, "Should be None");
+    }
+
+    #[test]
+    fn new_with_initial() {
+        let mem: Vec<u8> = vec!(1, 2, 3, 4, 10, 100);
+        let interpreter = BinaryInterpreter::new_with_initial(&mem);
+        assert_ne!(None, interpreter);
+        let interpreter = interpreter.expect("Already checked");
+        for i in 0..(mem.len() as u32) {
+            let read_byte = interpreter.read_u8(i);
+            assert_eq!(Some(mem[i as usize]), read_byte);
+        }
+    }
+
+    #[test]
+    fn new_with_initial_with_overflow() {
+        let mem: Vec<u8> = vec!(0; BINARY_INTERPRETER_MEM_SIZE + 100);
+        let interpreter = BinaryInterpreter::new_with_initial(&mem);
+        assert_eq!(None, interpreter);
+    }
+
+    #[test]
+    fn read_u32_out_of_bounds() {
+        let interpreter = BinaryInterpreter::new();
+        assert_eq!(None, interpreter.read_u32(BINARY_INTERPRETER_MEM_SIZE as u32));
+    }
+
+    #[test]
+    fn read_u16_out_of_bounds() {
+        let interpreter = BinaryInterpreter::new();
+        assert_eq!(None, interpreter.read_u16(BINARY_INTERPRETER_MEM_SIZE as u32));
+    }
+
+    #[test]
+    fn read_u8_out_of_bounds() {
+        let interpreter = BinaryInterpreter::new();
+        assert_eq!(None, interpreter.read_u8(BINARY_INTERPRETER_MEM_SIZE as u32));
+    }
+
+    #[test]
+    fn write_u32_out_of_bounds() {
+        let mut interpreter = BinaryInterpreter::new();
+        assert_eq!(false, interpreter.write_u32(BINARY_INTERPRETER_MEM_SIZE as u32, 0));
+    }
+
+    #[test]
+    fn write_u16_out_of_bounds() {
+        let mut interpreter = BinaryInterpreter::new();
+        assert_eq!(false, interpreter.write_u16(BINARY_INTERPRETER_MEM_SIZE as u32, 0));
+    }
+
+    #[test]
+    fn write_u8_out_of_bounds() {
+        let mut interpreter = BinaryInterpreter::new();
+        assert_eq!(false, interpreter.write_u8(BINARY_INTERPRETER_MEM_SIZE as u32, 0));
+    }
+
+    #[test]
+    fn execute_out_of_bounds() {
+        let interpreter = BinaryInterpreter::new();
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+        vm.execute(BINARY_INTERPRETER_MEM_SIZE as u32);
+        assert_eq!(Error::Memory as u32, vm.read_register_value(Register::ERR));
     }
 }

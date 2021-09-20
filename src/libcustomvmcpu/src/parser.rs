@@ -23,7 +23,7 @@ use super::runtime::utils;
 extern crate logos;
 use logos::{Logos, Lexer};
 
-#[derive(Logos, Debug, PartialEq)]
+#[derive(Logos, Debug, PartialEq, Clone, Copy)]
 pub enum Token {
     #[regex("[a-zA-Z_][a-zA-Z0-9_]*:")]
     Label,
@@ -154,7 +154,95 @@ pub enum Token {
 
 }
 
-//pub fn parse(lexer: &mut Lexer<Token>) {
+pub enum InstructionParseType {
+    TwoRegisters,
+    RegisterAndImmediate,
+    Register,
+    Immediate,
+    TwoRegistersAndImmediate,
+}
+
+pub fn get_op_code(tok: Token) -> Option<OpCode> {
+    match tok {
+        Token::KwCpy => Some(OpCode::CPY),
+        Token::KwLw => Some(OpCode::LW),
+        Token::KwSw => Some(OpCode::SW),
+        Token::KwLh => Some(OpCode::LH),
+        Token::KwSh => Some(OpCode::SH),
+        Token::KwLb => Some(OpCode::LB),
+        Token::KwSb => Some(OpCode::SB),
+        Token::KwLi => Some(OpCode::LI),
+        Token::KwAdd => Some(OpCode::ADD),
+        Token::KwSub => Some(OpCode::SUB),
+        Token::KwMul => Some(OpCode::MUL),
+        Token::KwDiv => Some(OpCode::DIV),
+        Token::KwAnd => Some(OpCode::AND),
+        Token::KwOr => Some(OpCode::OR),
+        Token::KwXor => Some(OpCode::XOR),
+        Token::KwSrl => Some(OpCode::SRL),
+        Token::KwSll => Some(OpCode::SLL),
+        Token::KwSrli => Some(OpCode::SRLI),
+        Token::KwSlli => Some(OpCode::SLLI),
+        Token::KwNot => Some(OpCode::NOT),
+        Token::KwJ => Some(OpCode::J),
+        Token::KwJi => Some(OpCode::JI),
+        Token::KwJil => Some(OpCode::JIL),
+        Token::KwJzi => Some(OpCode::JZI),
+        Token::KwJnzi => Some(OpCode::JNZI),
+        Token::KwJlzi => Some(OpCode::JLZI),
+        Token::KwJgzi => Some(OpCode::JGZI),
+        Token::KwSyscalli => Some(OpCode::SYSCALLI),
+        Token::Label
+            | Token::AddrToLabel
+            | Token::Reg
+            | Token::Hex
+            | Token::Int
+            | Token::Comma
+            | Token::OpAdd
+            | Token::OpSub
+            | Token::OpMul
+            | Token::OpDiv
+            | Token::OpOpenBracket
+            | Token::OpCloseBracket
+            | Token::NewLine
+            | Token::Error => None
+    }
+}
+
+pub fn get_instruction_parse_type(op_code: OpCode) -> Option<InstructionParseType> {
+    match op_code {
+        OpCode::CPY
+            | OpCode::LW
+            | OpCode::SW
+            | OpCode::LH
+            | OpCode::SH
+            | OpCode::LB
+            | OpCode::SB 
+            | OpCode::ADD
+            | OpCode::SUB
+            | OpCode::MUL
+            | OpCode::DIV
+            | OpCode::AND
+            | OpCode::OR
+            | OpCode::XOR
+            | OpCode::SRL
+            | OpCode::SLL => Some(InstructionParseType::TwoRegisters),
+        OpCode::SRLI
+            | OpCode::SLLI
+            | OpCode::JZI
+            | OpCode::JNZI
+            | OpCode::JLZI
+            | OpCode::JGZI
+            | OpCode::LI => Some(InstructionParseType::RegisterAndImmediate),
+        OpCode::NOT
+            | OpCode::J => Some(InstructionParseType::Register),
+        OpCode::SYSCALLI
+            | OpCode::JI
+            | OpCode::JIL => Some(InstructionParseType::Immediate),
+    }
+}
+
+//pub fn parse(lex: &mut Lexer<Token>) {
 //}
 
 #[cfg(test)]

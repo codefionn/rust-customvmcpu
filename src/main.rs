@@ -21,7 +21,7 @@ use std::{env, fs, process::exit};
 use std::io::{self, Read};
 
 use libcustomvmcpu::runtime::{Interpreter, BinaryVirtualMachine, BinaryInterpreter};
-use libcustomvmcpu::common::{OpCode, Register};
+use libcustomvmcpu::common::{OpCode, Register, Error, ERROR_START_NUM};
 
 fn print_help() {
     println!("rust-customvmcpu - Virtual CPU written in rust");
@@ -95,25 +95,30 @@ fn main() {
     };
 
     let interpreter = BinaryInterpreter::new_with_initial(&input);
-    let mut vm = BinaryVirtualMachine::new(interpreter);
-    let exit_code = vm.execute_first() as i32;
+    if let Some(interpreter) = interpreter {
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+        let exit_code = vm.execute_first() as i32;
 
-    if pretty_print_registers {
-        println!("R0: {}\nR1: {}\nR2: {}\nR3: {}\nR4: {}\nR5: {}\nR6: {}\nR7: {}\nIP: {}\nSP: {}\nRA: {}\nERR: {}\n",
-            vm.read_register_value(Register::R0),
-            vm.read_register_value(Register::R1),
-            vm.read_register_value(Register::R2),
-            vm.read_register_value(Register::R3),
-            vm.read_register_value(Register::R4),
-            vm.read_register_value(Register::R5),
-            vm.read_register_value(Register::R6),
-            vm.read_register_value(Register::R7),
-            vm.read_register_value(Register::IP),
-            vm.read_register_value(Register::SP),
-            vm.read_register_value(Register::RA),
-            vm.read_register_value(Register::ERR),
-        );
+        if pretty_print_registers {
+            println!("R0: {}\nR1: {}\nR2: {}\nR3: {}\nR4: {}\nR5: {}\nR6: {}\nR7: {}\nIP: {}\nSP: {}\nRA: {}\nERR: {}\n",
+                vm.read_register_value(Register::R0),
+                vm.read_register_value(Register::R1),
+                vm.read_register_value(Register::R2),
+                vm.read_register_value(Register::R3),
+                vm.read_register_value(Register::R4),
+                vm.read_register_value(Register::R5),
+                vm.read_register_value(Register::R6),
+                vm.read_register_value(Register::R7),
+                vm.read_register_value(Register::IP),
+                vm.read_register_value(Register::SP),
+                vm.read_register_value(Register::RA),
+                vm.read_register_value(Register::ERR),
+            );
+        }
+
+        exit(exit_code);
     }
-
-    exit(exit_code);
+    else {
+        exit(ERROR_START_NUM as i32 + Error::Memory as i32);
+    }
 }
