@@ -17,6 +17,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use std::iter::Peekable;
+
 use super::common::{OpCode, Register, Error, LAST_REGISTER, ERROR_START_NUM};
 use super::runtime::utils;
 
@@ -124,6 +126,12 @@ pub enum Token {
     #[token("slli")]
     KwSlli,
 
+    #[token(".i32")]
+    KwMemI32,
+
+    #[token(".str")]
+    KwMemStr,
+
     #[token(",")]
     Comma,
 
@@ -154,6 +162,7 @@ pub enum Token {
 
 }
 
+#[derive(Debug, PartialEq)]
 pub enum InstructionParseType {
     TwoRegisters,
     RegisterAndImmediate,
@@ -162,54 +171,7 @@ pub enum InstructionParseType {
     TwoRegistersAndImmediate,
 }
 
-pub fn get_op_code(tok: Token) -> Option<OpCode> {
-    match tok {
-        Token::KwCpy => Some(OpCode::CPY),
-        Token::KwLw => Some(OpCode::LW),
-        Token::KwSw => Some(OpCode::SW),
-        Token::KwLh => Some(OpCode::LH),
-        Token::KwSh => Some(OpCode::SH),
-        Token::KwLb => Some(OpCode::LB),
-        Token::KwSb => Some(OpCode::SB),
-        Token::KwLi => Some(OpCode::LI),
-        Token::KwAdd => Some(OpCode::ADD),
-        Token::KwSub => Some(OpCode::SUB),
-        Token::KwMul => Some(OpCode::MUL),
-        Token::KwDiv => Some(OpCode::DIV),
-        Token::KwAnd => Some(OpCode::AND),
-        Token::KwOr => Some(OpCode::OR),
-        Token::KwXor => Some(OpCode::XOR),
-        Token::KwSrl => Some(OpCode::SRL),
-        Token::KwSll => Some(OpCode::SLL),
-        Token::KwSrli => Some(OpCode::SRLI),
-        Token::KwSlli => Some(OpCode::SLLI),
-        Token::KwNot => Some(OpCode::NOT),
-        Token::KwJ => Some(OpCode::J),
-        Token::KwJi => Some(OpCode::JI),
-        Token::KwJil => Some(OpCode::JIL),
-        Token::KwJzi => Some(OpCode::JZI),
-        Token::KwJnzi => Some(OpCode::JNZI),
-        Token::KwJlzi => Some(OpCode::JLZI),
-        Token::KwJgzi => Some(OpCode::JGZI),
-        Token::KwSyscalli => Some(OpCode::SYSCALLI),
-        Token::Label
-            | Token::AddrToLabel
-            | Token::Reg
-            | Token::Hex
-            | Token::Int
-            | Token::Comma
-            | Token::OpAdd
-            | Token::OpSub
-            | Token::OpMul
-            | Token::OpDiv
-            | Token::OpOpenBracket
-            | Token::OpCloseBracket
-            | Token::NewLine
-            | Token::Error => None
-    }
-}
-
-pub fn get_instruction_parse_type(op_code: OpCode) -> Option<InstructionParseType> {
+pub fn get_instruction_parse_type(op_code: OpCode) -> InstructionParseType {
     match op_code {
         OpCode::CPY
             | OpCode::LW
@@ -226,28 +188,349 @@ pub fn get_instruction_parse_type(op_code: OpCode) -> Option<InstructionParseTyp
             | OpCode::OR
             | OpCode::XOR
             | OpCode::SRL
-            | OpCode::SLL => Some(InstructionParseType::TwoRegisters),
+            | OpCode::SLL => InstructionParseType::TwoRegisters,
         OpCode::SRLI
             | OpCode::SLLI
             | OpCode::JZI
             | OpCode::JNZI
             | OpCode::JLZI
             | OpCode::JGZI
-            | OpCode::LI => Some(InstructionParseType::RegisterAndImmediate),
+            | OpCode::LI => InstructionParseType::RegisterAndImmediate,
         OpCode::NOT
-            | OpCode::J => Some(InstructionParseType::Register),
+            | OpCode::J => InstructionParseType::Register,
         OpCode::SYSCALLI
             | OpCode::JI
-            | OpCode::JIL => Some(InstructionParseType::Immediate),
+            | OpCode::JIL => InstructionParseType::Immediate,
     }
 }
 
-//pub fn parse(lex: &mut Lexer<Token>) {
-//}
+#[derive(Debug, PartialEq)]
+pub enum Expr
+{
+    InstructionRegister(OpCode, Register),
+    InstructionImmediate(OpCode, Box<Expr>),
+    InstructionTwoRegisters(OpCode, Register, Register),
+    InstructionRegisterAndImmediate(OpCode, Register, Box<Expr>),
+    StoreI32(Box<Expr>),
+    StoreStr(String),
+    Label(String),
+    Int(u32),
+    AddrToLabel(String),
+    Error(),
+}
+
+#[derive(Debug, PartialEq)]
+pub enum ParserErrorType {
+    /// Cannot lex expression
+    CannotParse,
+    /// Expected register token
+    ExpectedRegister,
+    ExpectedValidRegister,
+    ExpectedImmediate,
+    ExpectedValidImmediate,
+    ExpectedLabel,
+    ExpectedNewLine,
+    ExpectedToken(&'static Token),
+}
+
+#[derive(Debug, PartialEq)]
+pub struct ParserError {
+    pos: std::ops::Range<usize>,
+    line: usize,
+    err_type: ParserErrorType,
+}
+
+pub struct ParserResult {
+    program: Vec<Expr>,
+    errors: Vec<ParserError>
+}
+
+struct Parser {
+    line: usize,
+    errors: Vec<ParserError>
+}
+
+pub fn parse_str(program: &'static str) -> ParserResult {
+    let lex = &mut Token::lexer(program);
+    let result = parse(lex);
+    result
+}
+
+pub fn parse_string(program: String) -> ParserResult {
+    let lex = &mut Token::lexer(&program.as_str());
+    let result = parse(lex);
+    result
+}
+
+pub fn parse(lex: &mut Lexer<Token>) -> ParserResult {
+    let mut program: Vec<Expr> = Vec::new();
+    let mut parser = Parser { line: 0, errors: Vec::new() };
+
+    let mut tok = lex.next();
+    while let Some(expr) = parser.parse_expr(&mut tok, lex) {
+        program.push(expr);
+    }
+
+    return ParserResult { program, errors: parser.errors };
+}
+
+impl Parser {
+    fn next<'source>(&mut self, tok: &'source mut Option<Token>, lex: &mut Lexer<Token>) -> &'source mut Option<Token>
+    {
+        *tok = lex.next();
+        println!("{:?}", *tok);
+        return tok;
+    }
+
+    pub fn parse_expr(&mut self, current: &mut Option<Token>, lex: &mut Lexer<Token>) -> Option<Expr>
+    {
+        println!("{:?}", current);
+        self.advance_newlines(current, lex);
+
+        return if let Some(tok) = current {
+            println!("{:?}", tok);
+            Some(match tok {
+                Token::KwCpy => self.parse_instruction(OpCode::CPY, current, lex),
+                Token::KwLw => self.parse_instruction(OpCode::LW, current, lex),
+                Token::KwSw => self.parse_instruction(OpCode::SW, current, lex),
+                Token::KwLh => self.parse_instruction(OpCode::LH, current, lex),
+                Token::KwSh => self.parse_instruction(OpCode::SH, current, lex),
+                Token::KwLb => self.parse_instruction(OpCode::LB, current, lex),
+                Token::KwSb => self.parse_instruction(OpCode::SB, current, lex),
+                Token::KwLi => self.parse_instruction(OpCode::LI, current, lex),
+                Token::KwAdd => self.parse_instruction(OpCode::ADD, current, lex),
+                Token::KwSub => self.parse_instruction(OpCode::SUB, current, lex),
+                Token::KwMul => self.parse_instruction(OpCode::MUL, current, lex),
+                Token::KwDiv => self.parse_instruction(OpCode::DIV, current, lex),
+                Token::KwAnd => self.parse_instruction(OpCode::AND, current, lex),
+                Token::KwOr => self.parse_instruction(OpCode::OR, current, lex),
+                Token::KwXor => self.parse_instruction(OpCode::XOR, current, lex),
+                Token::KwSrl => self.parse_instruction(OpCode::SRL, current, lex),
+                Token::KwSll => self.parse_instruction(OpCode::SLL, current, lex),
+                Token::KwSrli => self.parse_instruction(OpCode::SRLI, current, lex),
+                Token::KwSlli => self.parse_instruction(OpCode::SLLI, current, lex),
+                Token::KwNot => self.parse_instruction(OpCode::NOT, current, lex),
+                Token::KwJ => self.parse_instruction(OpCode::J, current, lex),
+                Token::KwJi => self.parse_instruction(OpCode::JI, current, lex),
+                Token::KwJil => self.parse_instruction(OpCode::JIL, current, lex),
+                Token::KwJzi => self.parse_instruction(OpCode::JZI, current, lex),
+                Token::KwJnzi => self.parse_instruction(OpCode::JNZI, current, lex),
+                Token::KwJlzi => self.parse_instruction(OpCode::JLZI, current, lex),
+                Token::KwJgzi => self.parse_instruction(OpCode::JGZI, current, lex),
+                Token::KwSyscalli => self.parse_instruction(OpCode::SYSCALLI, current, lex),
+                Token::Label => self.parse_label(current, lex),
+                Token::AddrToLabel => Expr::Error(),
+                Token::Reg => Expr::Error(),
+                Token::Hex => Expr::Error(),
+                Token::Int => Expr::Error(),
+                Token::Comma => Expr::Error(),
+                Token::OpAdd => Expr::Error(),
+                Token::OpSub => Expr::Error(),
+                Token::OpMul => Expr::Error(),
+                Token::OpDiv => Expr::Error(),
+                Token::OpOpenBracket => Expr::Error(),
+                Token::OpCloseBracket => Expr::Error(),
+                Token::NewLine => Expr::Error(),
+                Token::Error  => Expr::Error(),
+                Token::KwMemI32 => self.parse_mem_i32(current, lex),
+                Token::KwMemStr => Expr::Error()
+            })
+        }
+        else {
+            None
+        };
+    }
+
+    pub fn parse_mem_i32(&mut self, tok: &mut Option<Token>, lex: &mut Lexer<Token>) -> Expr {
+
+        let result = if let Some(expr) = self.parse_immediate(tok, lex) {
+            expr
+        }
+        else {
+            Expr::Error()
+        };
+
+        self.expect_newline(tok, lex);
+
+        return result;
+    }
+
+    pub fn parse_label(&mut self, tok: &mut Option<Token>, lex: &mut Lexer<Token>) -> Expr {
+        if let Some(Token::Label) = tok {
+            Expr::Label(lex.slice().get(1..).expect("Made sure by lexer").to_string())
+        }
+        else {
+            self.errors.push(ParserError { pos: lex.span(), line: self.line, err_type: ParserErrorType::ExpectedLabel });
+            Expr::Error()
+        }
+    }
+    
+    pub fn parse_instruction(&mut self, op_code: OpCode, tok: &mut Option<Token>, lex: &mut Lexer<Token>) -> Expr {
+        let parse_type = get_instruction_parse_type(op_code);
+        println!("{:?}, {:?}", op_code, parse_type);
+        let expr = match parse_type {
+            InstructionParseType::Register => {
+                self.next(tok, lex);
+                if let Some(reg) = self.parse_register(tok, lex) {
+                    self.next(tok, lex);
+                    Expr::InstructionRegister(op_code, reg)
+                }
+                else {
+                    Expr::Error()
+                }
+            },
+            InstructionParseType::Immediate => {
+                self.next(tok, lex);
+                if let Some(imm) = self.parse_immediate(tok, lex) {
+                    self.next(tok, lex);
+                    Expr::InstructionImmediate(op_code, Box::new(imm))
+                }
+                else {
+                    Expr::Error()
+                }
+            },
+            InstructionParseType::TwoRegisters => {
+                self.next(tok, lex);
+                let reg_raw0 = self.parse_register(tok, lex);
+                self.eat_token(tok, lex, &Token::Comma);
+                let reg_raw1 = self.parse_register(tok, lex);
+                if let (Some(reg0), Some(reg1)) = (reg_raw0, reg_raw1) {
+                    self.next(tok, lex);
+                    Expr::InstructionTwoRegisters(op_code, reg0, reg1)
+                }
+                else {
+                    Expr::Error()
+                }
+            },
+            InstructionParseType::RegisterAndImmediate => {
+                self.next(tok, lex);
+                let reg_raw = self.parse_register(tok, lex);
+                self.eat_token(tok, lex, &Token::Comma);
+                let imm_raw = self.parse_immediate(tok, lex);
+                if let (Some(reg), Some(imm)) = (reg_raw, imm_raw) {
+                    self.next(tok, lex);
+                    Expr::InstructionRegisterAndImmediate(op_code, reg, Box::new(imm))
+                }
+                else {
+                    Expr::Error()
+                }
+            },
+            InstructionParseType::TwoRegistersAndImmediate => {
+                Expr::Error()
+            }
+        };
+
+        if !self.expect_newline(tok, lex) {
+            return Expr::Error();
+        }
+
+        return expr;
+    }
+
+    fn expect_token(&mut self, tok: &mut Option<Token>, lex: &mut Lexer<Token>, expect: &'static Token) -> bool {
+        if *tok != Some(*expect) {
+            self.errors.push(ParserError { pos: lex.span(), line: self.line, err_type: ParserErrorType::ExpectedToken(expect) });
+            return false;
+        }
+
+        return true;
+    }
+
+    fn eat_token(&mut self, tok: &mut Option<Token>, lex: &mut Lexer<Token>, expect: &'static Token) -> bool {
+        if self.expect_token(tok, lex, expect) {
+            self.next(tok, lex);
+
+            return true;
+        }
+
+        return false;
+    }
+
+    fn expect_newline(&mut self, tok: &mut Option<Token>, lex: &mut Lexer<Token>) -> bool {
+        if !self.advance_newlines(tok, lex) {
+            self.errors.push(ParserError { pos: lex.span(), line: self.line, err_type: ParserErrorType::ExpectedValidImmediate });
+            return false;
+        }
+
+        return true;
+    }
+
+    fn advance_newlines(&mut self, tok: &mut Option<Token>, lex: &mut Lexer<Token>) -> bool {
+        if None == *tok {
+            return true;
+        }
+
+        let mut result = false;
+        while *tok == Some(Token::NewLine) {
+            *tok = lex.next();
+            result = true;
+        }
+        return result;
+    }
+
+    fn parse_immediate(&mut self, current: &mut Option<Token>, lex: &mut Lexer<Token>) -> Option<Expr> {
+        if let Some(tok) = current {
+            match tok {
+                Token::Int => {
+                    let result = Some(Expr::Int(lex.slice().parse().expect("Expect rangers everything was made sure!")));
+                    self.next(current, lex); // eat int
+                    result
+                },
+                Token::AddrToLabel => {
+                    let result = Some(Expr::AddrToLabel(lex.slice().get(1..).expect("Made sure by lexer").into()));
+                    self.next(current, lex); // eat addr_to_label
+                    result
+                }
+                _ => {
+                    self.errors.push(ParserError { pos: lex.span(), line: self.line, err_type: ParserErrorType::ExpectedValidImmediate });
+                    None
+                }
+            }
+        }
+        else {
+            self.errors.push(ParserError { pos: lex.span(), line: self.line, err_type: ParserErrorType::ExpectedImmediate });
+            None
+        }
+    }
+
+    fn parse_register(&mut self, tok: &mut Option<Token>, lex: &mut Lexer<Token>) -> Option<Register> {
+        println!("Expect register: {:?}", tok);
+        return if let Some(Token::Reg) = *tok {
+            let reg = lex.slice().get(1..).expect("It starts with $, damit!");
+            let result = match reg {
+                "r0" => Some(Register::R0),
+                "r1" => Some(Register::R1),
+                "r2" => Some(Register::R2),
+                "r3" => Some(Register::R3),
+                "r4" => Some(Register::R4),
+                "r5" => Some(Register::R5),
+                "r6" => Some(Register::R6),
+                "r7" => Some(Register::R7),
+                "ip" => Some(Register::IP),
+                "ra" => Some(Register::RA),
+                "sp" => Some(Register::SP),
+                "err" => Some(Register::ERR),
+                _ => {
+                    self.errors.push(ParserError { pos: lex.span(), line: self.line, err_type: ParserErrorType::ExpectedValidRegister });
+                    None
+                }
+            };
+
+            self.next(tok, lex); // eat register token
+
+            result
+        }
+        else {
+            self.errors.push(ParserError { pos: lex.span(), line: self.line, err_type: ParserErrorType::ExpectedRegister });
+            None
+        };
+    }
+}
 
 #[cfg(test)]
 mod tests {
-    use super::Token;
+    use crate::common::{OpCode, Register};
+    use super::{Token, parse_str, parse_string, ParserResult, Expr};
     use logos::{Logos, Lexer};
 
     #[test]
@@ -285,7 +568,7 @@ mod tests {
     }
 
     #[test]
-    fn addrToLabel() {
+    fn addr_to_label() {
         let mut lex = Token::lexer("%label");
         assert_eq!(Some(Token::AddrToLabel), lex.next());
     }
@@ -510,5 +793,44 @@ mod tests {
 
         let mut lex = Token::lexer("0x0123456789");
         assert_eq!(Some(Token::Hex), lex.next());
+    }
+
+    #[test]
+    fn parse_li() {
+        let result = parse_str("li $r0, 10");
+        println!("{:?}", result.program);
+        println!("{:?}", result.errors);
+        assert_eq!(1, result.program.len());
+        let expr = result.program.get(0).expect("Made sure above");
+        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::LI, Register::R0, Box::new(Expr::Int(10))), *expr);
+    }
+
+    #[test]
+    fn parse_j() {
+        let result = parse_str("j $r0");
+        assert_eq!(1, result.program.len());
+        let expr = result.program.get(0).expect("Made sure above");
+        assert_eq!(Expr::InstructionRegister(OpCode::J, Register::R0), *expr);
+    }
+
+    #[test]
+    fn parse_add() {
+        let result = parse_str("add $r0, $r1");
+        assert_eq!(1, result.program.len());
+        let expr = result.program.get(0).expect("Made sure above");
+        assert_eq!(Expr::InstructionTwoRegisters(OpCode::ADD, Register::R0, Register::R1), *expr);
+    }
+
+    #[test]
+    fn parse_ji() {
+        let result = parse_str("jgzi $r0, 10");
+        assert_eq!(1, result.program.len());
+        let expr = result.program.get(0).expect("Made sure above");
+        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::JGZI, Register::R0, Box::new(Expr::Int(10))), *expr);
+
+        let result = parse_str("jgzi $r0, %label");
+        assert_eq!(1, result.program.len());
+        let expr = result.program.get(0).expect("Made sure above");
+        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::JGZI, Register::R0, Box::new(Expr::AddrToLabel("label".to_string()))), *expr);
     }
 }
