@@ -318,6 +318,41 @@ pub enum OpCode {
     SLLI,
 }
 
+impl ToString for OpCode {
+    fn to_string(&self) -> String {
+        (match self {
+            Self::CPY => "cpy",
+            Self::LW => "lw",
+            Self::SW => "sw",
+            Self::LH => "lh",
+            Self::SH => "sh",
+            Self::LB => "lb",
+            Self::SB => "sb",
+            Self::LI => "li",
+            Self::ADD => "add",
+            Self::SUB => "sub",
+            Self::MUL => "mul",
+            Self::DIV => "div",
+            Self::AND => "and",
+            Self::OR => "or",
+            Self::XOR => "xor",
+            Self::NOT => "not",
+            Self::J => "j",
+            Self::JI => "ji",
+            Self::JIL => "jil",
+            Self::JZI => "jzi",
+            Self::JNZI => "jnzi",
+            Self::JLZI => "jlzi",
+            Self::JGZI => "jgzi",
+            Self::SYSCALLI => "syscalli",
+            Self::SRL => "srl",
+            Self::SLL => "sll",
+            Self::SRLI => "srli",
+            Self::SLLI => "slli"
+        }).to_string()
+    }
+}
+
 pub const LAST_OP_CODE: OpCode = OpCode::SYSCALLI;
 
 /// Errors that can occur

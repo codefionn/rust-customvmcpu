@@ -24,6 +24,7 @@ use super::runtime::utils;
 
 extern crate logos;
 use logos::{Logos, Lexer};
+use more_asserts::{assert_ge, debug_assert_ge};
 
 #[derive(Logos, Debug, PartialEq, Clone, Copy)]
 pub enum Token {
@@ -267,8 +268,19 @@ pub fn parse(lex: &mut Lexer<Token>) -> ParserResult {
     let mut parser = Parser { line: 0, errors: Vec::new() };
 
     let mut tok = lex.next();
+    let mut pos = lex.span();
     while let Some(expr) = parser.parse_expr(&mut tok, lex) {
         program.push(expr);
+
+        // Check position to avoid endless loop
+        let new_pos = lex.span();
+        if new_pos == pos {
+            // Hopefully an error occured
+            debug_assert_ge!(parser.errors.len(), 0, "At least on parser-error must exist. Current element ({:?}): {}", tok, lex.slice());
+            parser.next(&mut tok, lex);
+        }
+
+        pos = new_pos;
     }
 
     return ParserResult { program, errors: parser.errors };
@@ -822,7 +834,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_ji() {
+    fn parse_jgzi() {
         let result = parse_str("jgzi $r0, 10");
         assert_eq!(1, result.program.len());
         let expr = result.program.get(0).expect("Made sure above");
@@ -832,5 +844,65 @@ mod tests {
         assert_eq!(1, result.program.len());
         let expr = result.program.get(0).expect("Made sure above");
         assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::JGZI, Register::R0, Box::new(Expr::AddrToLabel("label".to_string()))), *expr);
+    }
+
+    #[test]
+    fn parse_instructions_two_registers() {
+        let op_codes = [ OpCode::CPY,
+            OpCode::LW, OpCode::SW,
+            OpCode::LH, OpCode::SH,
+            OpCode::LB, OpCode::SB,
+            OpCode::ADD, OpCode::SUB, OpCode::MUL, OpCode::DIV,
+            OpCode::AND, OpCode::OR, OpCode::XOR,
+            OpCode::SRL, OpCode::SLL ];
+
+        for op_code in op_codes {
+            let result = parse_string(op_code.to_string() + " $r0, $ra");
+            assert_eq!(1, result.program.len());
+            let expr = result.program.get(0).expect("Made sure above");
+            assert_eq!(Expr::InstructionTwoRegisters(op_code, Register::R0, Register::RA), *expr);
+        }
+    }
+
+    #[test]
+    fn parse_instructions_register_and_immediate() {
+        let op_codes = [ OpCode::SRLI,
+            OpCode::SLLI,
+            OpCode::JZI,
+            OpCode::JNZI,
+            OpCode::JLZI,
+            OpCode::JGZI,
+            OpCode::LI ];
+
+        for op_code in op_codes {
+            let result = parse_string(op_code.to_string() + " $r0, 10");
+            assert_eq!(1, result.program.len());
+            let expr = result.program.get(0).expect("Made sure above");
+            assert_eq!(Expr::InstructionRegisterAndImmediate(op_code, Register::R0, Box::new(Expr::Int(10))), *expr);
+        }
+    }
+
+    #[test]
+    fn parse_instruction_register() {
+        let op_codes = [ OpCode::NOT, OpCode::J ];
+
+        for op_code in op_codes {
+            let result = parse_string(op_code.to_string() + " $r6");
+            assert_eq!(1, result.program.len());
+            let expr = result.program.get(0).expect("Made sure above");
+            assert_eq!(Expr::InstructionRegister(op_code, Register::R6), *expr);
+        }
+    }
+
+    #[test]
+    fn parse_instruction_immediate() {
+        let op_codes = [ OpCode::SYSCALLI, OpCode::JI, OpCode::JIL ];
+
+        for op_code in op_codes {
+            let result = parse_string(op_code.to_string() + " 102");
+            assert_eq!(1, result.program.len());
+            let expr = result.program.get(0).expect("Made sure above");
+            assert_eq!(Expr::InstructionImmediate(op_code, Box::new(Expr::Int(102))), *expr);
+        }
     }
 }
