@@ -242,14 +242,14 @@ pub struct ParserError {
 }
 
 #[derive(Debug)]
-struct ParserExpr {
+pub struct ParserExpr {
     pub pos: std::ops::Range<usize>,
     pub expr: Expr
 }
 
 pub struct ParserResult {
-    program: Vec<ParserExpr>,
-    errors: Vec<ParserError>
+    pub program: Vec<ParserExpr>,
+    pub errors: Vec<ParserError>
 }
 
 struct Parser {
@@ -292,11 +292,13 @@ pub fn parse(lex: &mut Lexer<Token>) -> ParserResult {
     return ParserResult { program, errors: parser.errors };
 }
 
+/// Combine two ranges, range0 is the lower bound and range1 is the upper bound
 fn combine_range<Idx>(range0: std::ops::Range<Idx>, range1: std::ops::Range<Idx>) -> std::ops::Range<Idx> {
     return range0.start..range1.end;
 }
 
 impl Parser {
+    /// Advance to next token
     fn next<'source>(&mut self, tok: &'source mut Option<Token>, lex: &mut Lexer<Token>) -> &'source mut Option<Token>
     {
         *tok = lex.next();
@@ -304,6 +306,7 @@ impl Parser {
         return tok;
     }
 
+    /// Parse a single expression, like an instruction
     pub fn parse_expr(&mut self, current: &mut Option<Token>, lex: &mut Lexer<Token>) -> Option<ParserExpr>
     {
         println!("{:?}", current);
