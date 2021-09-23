@@ -241,8 +241,14 @@ pub struct ParserError {
     err_type: ParserErrorType,
 }
 
+#[derive(Debug)]
+struct ParserExpr {
+    pub pos: std::ops::Range<usize>,
+    pub expr: Expr
+}
+
 pub struct ParserResult {
-    program: Vec<Expr>,
+    program: Vec<ParserExpr>,
     errors: Vec<ParserError>
 }
 
@@ -264,7 +270,7 @@ pub fn parse_string(program: String) -> ParserResult {
 }
 
 pub fn parse(lex: &mut Lexer<Token>) -> ParserResult {
-    let mut program: Vec<Expr> = Vec::new();
+    let mut program: Vec<ParserExpr> = Vec::new();
     let mut parser = Parser { line: 0, errors: Vec::new() };
 
     let mut tok = lex.next();
@@ -286,6 +292,10 @@ pub fn parse(lex: &mut Lexer<Token>) -> ParserResult {
     return ParserResult { program, errors: parser.errors };
 }
 
+fn combine_range<Idx>(range0: std::ops::Range<Idx>, range1: std::ops::Range<Idx>) -> std::ops::Range<Idx> {
+    return range0.start..range1.end;
+}
+
 impl Parser {
     fn next<'source>(&mut self, tok: &'source mut Option<Token>, lex: &mut Lexer<Token>) -> &'source mut Option<Token>
     {
@@ -294,7 +304,7 @@ impl Parser {
         return tok;
     }
 
-    pub fn parse_expr(&mut self, current: &mut Option<Token>, lex: &mut Lexer<Token>) -> Option<Expr>
+    pub fn parse_expr(&mut self, current: &mut Option<Token>, lex: &mut Lexer<Token>) -> Option<ParserExpr>
     {
         println!("{:?}", current);
         self.advance_newlines(current, lex);
@@ -331,21 +341,21 @@ impl Parser {
                 Token::KwJgzi => self.parse_instruction(OpCode::JGZI, current, lex),
                 Token::KwSyscalli => self.parse_instruction(OpCode::SYSCALLI, current, lex),
                 Token::Label => self.parse_label(current, lex),
-                Token::AddrToLabel => Expr::Error(),
-                Token::Reg => Expr::Error(),
-                Token::Hex => Expr::Error(),
-                Token::Int => Expr::Error(),
-                Token::Comma => Expr::Error(),
-                Token::OpAdd => Expr::Error(),
-                Token::OpSub => Expr::Error(),
-                Token::OpMul => Expr::Error(),
-                Token::OpDiv => Expr::Error(),
-                Token::OpOpenBracket => Expr::Error(),
-                Token::OpCloseBracket => Expr::Error(),
-                Token::NewLine => Expr::Error(),
-                Token::Error  => Expr::Error(),
+                Token::AddrToLabel => ParserExpr { pos: lex.span(), expr : Expr::Error() },
+                Token::Reg => ParserExpr { pos: lex.span(), expr: Expr::Error() },
+                Token::Hex => ParserExpr { pos: lex.span(), expr: Expr::Error() },
+                Token::Int => ParserExpr { pos: lex.span(), expr: Expr::Error() },
+                Token::Comma => ParserExpr { pos: lex.span(), expr: Expr::Error() },
+                Token::OpAdd => ParserExpr { pos: lex.span(), expr: Expr::Error() },
+                Token::OpSub => ParserExpr { pos: lex.span(), expr: Expr::Error() },
+                Token::OpMul => ParserExpr { pos: lex.span(), expr: Expr::Error() },
+                Token::OpDiv => ParserExpr { pos: lex.span(), expr: Expr::Error() },
+                Token::OpOpenBracket => ParserExpr { pos: lex.span(), expr: Expr::Error() },
+                Token::OpCloseBracket => ParserExpr { pos: lex.span(), expr: Expr::Error() },
+                Token::NewLine => ParserExpr { pos: lex.span(), expr: Expr::Error() },
+                Token::Error  => ParserExpr { pos: lex.span(), expr: Expr::Error() },
                 Token::KwMemI32 => self.parse_mem_i32(current, lex),
-                Token::KwMemStr => Expr::Error()
+                Token::KwMemStr => ParserExpr { pos: lex.span(), expr: Expr::Error() }
             })
         }
         else {
@@ -353,9 +363,10 @@ impl Parser {
         };
     }
 
-    pub fn parse_mem_i32(&mut self, tok: &mut Option<Token>, lex: &mut Lexer<Token>) -> Expr {
-
+    pub fn parse_mem_i32(&mut self, tok: &mut Option<Token>, lex: &mut Lexer<Token>) -> ParserExpr {
+        let pos = lex.span();
         let result = if let Some(expr) = self.parse_immediate(tok, lex) {
+            self.next(tok, lex);
             expr
         }
         else {
@@ -364,41 +375,48 @@ impl Parser {
 
         self.expect_newline(tok, lex);
 
-        return result;
+        return ParserExpr { pos, expr: result };
     }
 
-    pub fn parse_label(&mut self, tok: &mut Option<Token>, lex: &mut Lexer<Token>) -> Expr {
+    pub fn parse_label(&mut self, tok: &mut Option<Token>, lex: &mut Lexer<Token>) -> ParserExpr {
+        let pos = lex.span();
         if let Some(Token::Label) = tok {
-            Expr::Label(lex.slice().get(1..).expect("Made sure by lexer").to_string())
+            let result = Expr::Label(lex.slice().get(1..).expect("Made sure by lexer").to_string());
+            self.next(tok, lex);
+            ParserExpr { pos, expr: result }
         }
         else {
             self.errors.push(ParserError { pos: lex.span(), line: self.line, err_type: ParserErrorType::ExpectedLabel });
-            Expr::Error()
+            ParserExpr { pos, expr: Expr::Error() }
         }
     }
     
-    pub fn parse_instruction(&mut self, op_code: OpCode, tok: &mut Option<Token>, lex: &mut Lexer<Token>) -> Expr {
+    pub fn parse_instruction(&mut self, op_code: OpCode, tok: &mut Option<Token>, lex: &mut Lexer<Token>) -> ParserExpr {
+        let start = lex.span();
+
         let parse_type = get_instruction_parse_type(op_code);
         println!("{:?}, {:?}", op_code, parse_type);
         let expr = match parse_type {
             InstructionParseType::Register => {
                 self.next(tok, lex);
+                let end = lex.span();
                 if let Some(reg) = self.parse_register(tok, lex) {
                     self.next(tok, lex);
-                    Expr::InstructionRegister(op_code, reg)
+                    ParserExpr { pos: combine_range(start.clone(), end), expr: Expr::InstructionRegister(op_code, reg) }
                 }
                 else {
-                    Expr::Error()
+                    ParserExpr { pos: combine_range(start.clone(), end), expr: Expr::Error() }
                 }
             },
             InstructionParseType::Immediate => {
                 self.next(tok, lex);
+                let end = lex.span();
                 if let Some(imm) = self.parse_immediate(tok, lex) {
                     self.next(tok, lex);
-                    Expr::InstructionImmediate(op_code, Box::new(imm))
+                    ParserExpr { pos: combine_range(start.clone(), end), expr: Expr::InstructionImmediate(op_code, Box::new(imm)) }
                 }
                 else {
-                    Expr::Error()
+                    ParserExpr { pos: combine_range(start.clone(), end), expr: Expr::Error() }
                 }
             },
             InstructionParseType::TwoRegisters => {
@@ -406,12 +424,14 @@ impl Parser {
                 let reg_raw0 = self.parse_register(tok, lex);
                 self.eat_token(tok, lex, &Token::Comma);
                 let reg_raw1 = self.parse_register(tok, lex);
+
+                let end = lex.span();
                 if let (Some(reg0), Some(reg1)) = (reg_raw0, reg_raw1) {
                     self.next(tok, lex);
-                    Expr::InstructionTwoRegisters(op_code, reg0, reg1)
+                    ParserExpr { pos: combine_range(start.clone(), end), expr: Expr::InstructionTwoRegisters(op_code, reg0, reg1) }
                 }
                 else {
-                    Expr::Error()
+                    ParserExpr { pos: combine_range(start.clone(), end), expr: Expr::Error() }
                 }
             },
             InstructionParseType::RegisterAndImmediate => {
@@ -419,21 +439,23 @@ impl Parser {
                 let reg_raw = self.parse_register(tok, lex);
                 self.eat_token(tok, lex, &Token::Comma);
                 let imm_raw = self.parse_immediate(tok, lex);
+
+                let end = lex.span();
                 if let (Some(reg), Some(imm)) = (reg_raw, imm_raw) {
                     self.next(tok, lex);
-                    Expr::InstructionRegisterAndImmediate(op_code, reg, Box::new(imm))
+                    ParserExpr { pos: combine_range(start.clone(), end), expr: Expr::InstructionRegisterAndImmediate(op_code, reg, Box::new(imm)) }
                 }
                 else {
-                    Expr::Error()
+                    ParserExpr { pos: combine_range(start.clone(), end), expr: Expr::Error() }
                 }
             },
             InstructionParseType::TwoRegistersAndImmediate => {
-                Expr::Error()
+                ParserExpr { pos: start.clone(), expr: Expr::Error() }
             }
         };
 
         if !self.expect_newline(tok, lex) {
-            return Expr::Error();
+            return ParserExpr { pos: combine_range(start.clone(), lex.span()), expr: Expr::Error() };
         }
 
         return expr;
@@ -814,7 +836,7 @@ mod tests {
         println!("{:?}", result.errors);
         assert_eq!(1, result.program.len());
         let expr = result.program.get(0).expect("Made sure above");
-        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::LI, Register::R0, Box::new(Expr::Int(10))), *expr);
+        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::LI, Register::R0, Box::new(Expr::Int(10))), expr.expr);
     }
 
     #[test]
@@ -822,7 +844,7 @@ mod tests {
         let result = parse_str("j $r0");
         assert_eq!(1, result.program.len());
         let expr = result.program.get(0).expect("Made sure above");
-        assert_eq!(Expr::InstructionRegister(OpCode::J, Register::R0), *expr);
+        assert_eq!(Expr::InstructionRegister(OpCode::J, Register::R0), expr.expr);
     }
 
     #[test]
@@ -830,7 +852,7 @@ mod tests {
         let result = parse_str("add $r0, $r1");
         assert_eq!(1, result.program.len());
         let expr = result.program.get(0).expect("Made sure above");
-        assert_eq!(Expr::InstructionTwoRegisters(OpCode::ADD, Register::R0, Register::R1), *expr);
+        assert_eq!(Expr::InstructionTwoRegisters(OpCode::ADD, Register::R0, Register::R1), expr.expr);
     }
 
     #[test]
@@ -838,12 +860,12 @@ mod tests {
         let result = parse_str("jgzi $r0, 10");
         assert_eq!(1, result.program.len());
         let expr = result.program.get(0).expect("Made sure above");
-        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::JGZI, Register::R0, Box::new(Expr::Int(10))), *expr);
+        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::JGZI, Register::R0, Box::new(Expr::Int(10))), expr.expr);
 
         let result = parse_str("jgzi $r0, %label");
         assert_eq!(1, result.program.len());
         let expr = result.program.get(0).expect("Made sure above");
-        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::JGZI, Register::R0, Box::new(Expr::AddrToLabel("label".to_string()))), *expr);
+        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::JGZI, Register::R0, Box::new(Expr::AddrToLabel("label".to_string()))), expr.expr);
     }
 
     #[test]
@@ -860,7 +882,7 @@ mod tests {
             let result = parse_string(op_code.to_string() + " $r0, $ra");
             assert_eq!(1, result.program.len());
             let expr = result.program.get(0).expect("Made sure above");
-            assert_eq!(Expr::InstructionTwoRegisters(op_code, Register::R0, Register::RA), *expr);
+            assert_eq!(Expr::InstructionTwoRegisters(op_code, Register::R0, Register::RA), expr.expr);
         }
     }
 
@@ -878,7 +900,7 @@ mod tests {
             let result = parse_string(op_code.to_string() + " $r0, 10");
             assert_eq!(1, result.program.len());
             let expr = result.program.get(0).expect("Made sure above");
-            assert_eq!(Expr::InstructionRegisterAndImmediate(op_code, Register::R0, Box::new(Expr::Int(10))), *expr);
+            assert_eq!(Expr::InstructionRegisterAndImmediate(op_code, Register::R0, Box::new(Expr::Int(10))), expr.expr);
         }
     }
 
@@ -890,7 +912,7 @@ mod tests {
             let result = parse_string(op_code.to_string() + " $r6");
             assert_eq!(1, result.program.len());
             let expr = result.program.get(0).expect("Made sure above");
-            assert_eq!(Expr::InstructionRegister(op_code, Register::R6), *expr);
+            assert_eq!(Expr::InstructionRegister(op_code, Register::R6), expr.expr);
         }
     }
 
@@ -902,7 +924,7 @@ mod tests {
             let result = parse_string(op_code.to_string() + " 102");
             assert_eq!(1, result.program.len());
             let expr = result.program.get(0).expect("Made sure above");
-            assert_eq!(Expr::InstructionImmediate(op_code, Box::new(Expr::Int(102))), *expr);
+            assert_eq!(Expr::InstructionImmediate(op_code, Box::new(Expr::Int(102))), expr.expr);
         }
     }
 }
