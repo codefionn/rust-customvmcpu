@@ -168,6 +168,19 @@ mul $x, $y
 // If $y error, $x will also be overwritten with 0
 div $x, $y
 
+// Add x and y and store result in x
+addi $x, %y
+
+// Subtract y from x and store result in x
+subi $x, %y
+
+// Multiply x times y and store result in x
+muli $x, %y
+
+// Divide x through y and store result in x
+// If %y error, $x will also be overwritten with 0
+divi $x, %y
+
 // --- Bitshift/logical instructions ---
 // Bitwise and x y and store result in x
 and $x, $y
@@ -257,3 +270,7 @@ The following system calls are supported
 - sll: 0x19
 - srli: 0x20
 - slli: 0x21
+- addi: 0x22
+- subi: 0x23
+- muli: 0x23
+- divi: 0x24

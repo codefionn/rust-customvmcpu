@@ -331,6 +331,26 @@ impl<InterpreterImpl: Interpreter> VirtualMachine<InterpreterImpl> {
                             }
                     );
                 },
+                OpCode::ADDI => {
+                    self.binary_register_and_immediate_operation_write0(instruction, |_: &mut Self, x, y| x.wrapping_add(y));
+                },
+                OpCode::SUBI => {
+                    self.binary_register_and_immediate_operation_write0(instruction, |_: &mut Self, x, y| x.wrapping_sub(y));
+                },
+                OpCode::MULI => {
+                    self.binary_register_and_immediate_operation_write0(instruction, |_: &mut Self, x, y| x.wrapping_mul(y));
+                },
+                OpCode::DIVI => {
+                    self.binary_register_and_immediate_operation_write0(instruction,
+                        |this: &mut Self, x, y|
+                            if y == 0 {
+                                this.write_error(Error::DivisorNotZero);
+                                0
+                            } else {
+                                x / y
+                            }
+                    );
+                },
                 // Unconditional jumps
                 OpCode::J => {
                     let reg = Self::get_registers(instruction);
@@ -826,6 +846,99 @@ mod tests {
           utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 20),
           utils::create_instruction_register_and_immediate(OpCode::LI, Register::R1, 0),
           utils::create_instruction_two_registers(OpCode::DIV, Register::R0, Register::R1),
+          LOAD_0_IN_R1_INSTRUCTION,
+          SYSCALLI_EXIT_INSTRUCTION
+      ];
+
+      let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
+      let mut vm = BinaryVirtualMachine::new(interpreter);
+
+      assert_eq!(ERROR_START_NUM + Error::DivisorNotZero as u32, vm.execute_first());
+      assert_eq!(0, vm.read_register_value(Register::R0));
+    }
+
+    #[test]
+    fn addi() {
+        let program: [u32; 4] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 16),
+            utils::create_instruction_register_and_immediate(OpCode::ADDI, Register::R0, 5),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(21, vm.read_register_value(Register::R0));
+    }
+
+    #[test]
+    fn subi() {
+        let program: [u32; 4] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 16),
+            utils::create_instruction_register_and_immediate(OpCode::SUBI, Register::R0, 5),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(11, vm.read_register_value(Register::R0));
+    }
+
+    #[test]
+    fn muli() {
+        let program: [u32; 4] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 4),
+            utils::create_instruction_register_and_immediate(OpCode::MULI, Register::R0, 5),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(20, vm.read_register_value(Register::R0));
+    }
+
+    #[test]
+    fn divi() {
+        let program: [u32; 4] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 20),
+            utils::create_instruction_register_and_immediate(OpCode::DIVI, Register::R0, 5),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(4, vm.read_register_value(Register::R0));
+
+        let program: [u32; 4] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 24),
+            utils::create_instruction_register_and_immediate(OpCode::DIVI, Register::R0, 5),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(4, vm.read_register_value(Register::R0));
+    }
+
+    #[test]
+    fn divi_divisor_zero() {
+      let program: [u32; 4] = [
+          utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 20),
+          utils::create_instruction_register_and_immediate(OpCode::DIVI, Register::R0, 0),
           LOAD_0_IN_R1_INSTRUCTION,
           SYSCALLI_EXIT_INSTRUCTION
       ];

@@ -316,6 +316,50 @@ pub enum OpCode {
     /// slli $r0, 4
     /// 
     SLLI,
+
+    /// Add values of two registers
+    ///
+    /// # Example
+    /// 
+    /// Add registers `$r0` and 10 together and store result in `$r0`:
+    ///
+    /// 
+    /// addi $r0, 10
+    /// 
+    ADDI,
+
+    /// Subtract values of two registers
+    ///
+    /// # Example
+    ///
+    /// Subtract 10 from `$r0` and store result in `$r0`:
+    ///
+    /// 
+    /// subi $r0, 10
+    /// 
+    SUBI,
+
+    /// Multiply values of two registers
+    ///
+    /// # Example
+    ///
+    /// Multiple `$r0` and 10 and store result in `$r0`:
+    ///
+    /// 
+    /// muli $r0, 10
+    /// 
+    MULI,
+
+    /// Divide values of two registers
+    ///
+    /// # Example
+    ///
+    /// Divide `$r0` through 10 and store result in `$r0`:
+    ///
+    /// 
+    /// divi $r0, 10
+    /// 
+    DIVI,
 }
 
 impl ToString for OpCode {
@@ -348,7 +392,11 @@ impl ToString for OpCode {
             Self::SRL => "srl",
             Self::SLL => "sll",
             Self::SRLI => "srli",
-            Self::SLLI => "slli"
+            Self::SLLI => "slli",
+            Self::ADDI => "addi",
+            Self::SUBI => "subi",
+            Self::MULI => "muli",
+            Self::DIVI => "divi",
         }).to_string()
     }
 }

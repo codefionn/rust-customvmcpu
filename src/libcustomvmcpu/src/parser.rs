@@ -79,6 +79,18 @@ pub enum Token {
     #[token("div")]
     KwDiv,
 
+    #[token("addi")]
+    KwAddI,
+
+    #[token("subi")]
+    KwSubI,
+
+    #[token("muli")]
+    KwMulI,
+
+    #[token("divi")]
+    KwDivI,
+
     #[token("and")]
     KwAnd,
 
@@ -196,7 +208,11 @@ pub fn get_instruction_parse_type(op_code: OpCode) -> InstructionParseType {
             | OpCode::JNZI
             | OpCode::JLZI
             | OpCode::JGZI
-            | OpCode::LI => InstructionParseType::RegisterAndImmediate,
+            | OpCode::LI
+            | OpCode::ADDI
+            | OpCode::SUBI
+            | OpCode::MULI
+            | OpCode::DIVI => InstructionParseType::RegisterAndImmediate,
         OpCode::NOT
             | OpCode::J => InstructionParseType::Register,
         OpCode::SYSCALLI
@@ -326,6 +342,10 @@ impl Parser {
                 Token::KwSub => self.parse_instruction(OpCode::SUB, current, lex),
                 Token::KwMul => self.parse_instruction(OpCode::MUL, current, lex),
                 Token::KwDiv => self.parse_instruction(OpCode::DIV, current, lex),
+                Token::KwAddI => self.parse_instruction(OpCode::ADDI, current, lex),
+                Token::KwSubI => self.parse_instruction(OpCode::SUBI, current, lex),
+                Token::KwMulI => self.parse_instruction(OpCode::MULI, current, lex),
+                Token::KwDivI => self.parse_instruction(OpCode::DIVI, current, lex),
                 Token::KwAnd => self.parse_instruction(OpCode::AND, current, lex),
                 Token::KwOr => self.parse_instruction(OpCode::OR, current, lex),
                 Token::KwXor => self.parse_instruction(OpCode::XOR, current, lex),
@@ -852,6 +872,38 @@ mod tests {
         assert_eq!(1, result.program.len());
         let expr = result.program.get(0).expect("Made sure above");
         assert_eq!(Expr::InstructionTwoRegisters(OpCode::ADD, Register::R0, Register::R1), expr.expr);
+    }
+
+    #[test]
+    fn parse_addi() {
+        let result = parse_str("addi $r0, 11");
+        assert_eq!(1, result.program.len());
+        let expr = result.program.get(0).expect("Made sure above");
+        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::ADDI, Register::R0, Box::new(Expr::Int(11))), expr.expr);
+    }
+
+    #[test]
+    fn parse_subi() {
+        let result = parse_str("subi $r0, 11");
+        assert_eq!(1, result.program.len());
+        let expr = result.program.get(0).expect("Made sure above");
+        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::SUBI, Register::R0, Box::new(Expr::Int(11))), expr.expr);
+    }
+
+    #[test]
+    fn parse_muli() {
+        let result = parse_str("muli $r0, 11");
+        assert_eq!(1, result.program.len());
+        let expr = result.program.get(0).expect("Made sure above");
+        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::MULI, Register::R0, Box::new(Expr::Int(11))), expr.expr);
+    }
+
+    #[test]
+    fn parse_divi() {
+        let result = parse_str("divi $r0, 11");
+        assert_eq!(1, result.program.len());
+        let expr = result.program.get(0).expect("Made sure above");
+        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::DIVI, Register::R0, Box::new(Expr::Int(11))), expr.expr);
     }
 
     #[test]
