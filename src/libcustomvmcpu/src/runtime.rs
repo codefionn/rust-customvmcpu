@@ -19,6 +19,7 @@
 
 use std::convert::TryFrom;
 use std::convert::TryInto;
+use std::slice::SliceIndex;
 use num_traits::FromPrimitive;
 use super::common::{OpCode, Register, Error, LAST_REGISTER, ERROR_START_NUM};
 
@@ -48,21 +49,22 @@ pub trait Interpreter {
     #[must_use]
     fn write_u8(&mut self, pos: u32, value: u8) -> bool;
 
-
     /// Must memory
     fn len(&self) -> u32;
 }
 
-pub const BINARY_INTERPRETER_MEM_SIZE: usize = 1024 * 16 * 4;
+/// 4 MiB is "RAM"
+pub const BINARY_INTERPRETER_MEM_SIZE: u32 = 1024 * 1024 * 4;
 
 #[derive(PartialEq, Debug)]
 pub struct BinaryInterpreter {
-    memory: [u8; BINARY_INTERPRETER_MEM_SIZE],
+    memory: Vec<u8>,
 }
 
 impl BinaryInterpreter {
     pub fn new() -> BinaryInterpreter {
-        BinaryInterpreter { memory: [0; BINARY_INTERPRETER_MEM_SIZE] }
+        let memory = vec![0; BINARY_INTERPRETER_MEM_SIZE as usize];
+        BinaryInterpreter { memory }
     }
 
     #[allow(unused_must_use)] // Ignoring is evil, but it's checked upfront
@@ -1632,7 +1634,7 @@ mod tests {
 
     #[test]
     fn new_with_program_overflow() {
-        let program = vec!(0; BINARY_INTERPRETER_MEM_SIZE + 100);
+        let program = vec!(0; BINARY_INTERPRETER_MEM_SIZE as usize + 100);
         let interpreter = BinaryInterpreter::new_with_program(&program);
         assert_eq!(None, interpreter, "Should be None");
     }
@@ -1651,7 +1653,7 @@ mod tests {
 
     #[test]
     fn new_with_initial_with_overflow() {
-        let mem: Vec<u8> = vec!(0; BINARY_INTERPRETER_MEM_SIZE + 100);
+        let mem: Vec<u8> = vec!(0; BINARY_INTERPRETER_MEM_SIZE as usize + 100);
         let interpreter = BinaryInterpreter::new_with_initial(&mem);
         assert_eq!(None, interpreter);
     }
@@ -1830,11 +1832,12 @@ mod tests {
 
     #[test]
     fn lw_edge() {
-        let program: [u32; 4] = [
-            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, BINARY_INTERPRETER_MEM_SIZE as u32 - 4),
+        let program: [u32; 5] = [
+            utils::create_instruction_register_and_immediate(OpCode::LWI, Register::R0, 4 * 4),
             utils::create_instruction_two_registers(OpCode::LW, Register::R0, Register::R0),
             LOAD_0_IN_R1_INSTRUCTION,
-            SYSCALLI_EXIT_INSTRUCTION
+            SYSCALLI_EXIT_INSTRUCTION,
+            BINARY_INTERPRETER_MEM_SIZE - 4
         ];
         let interpreter = BinaryInterpreter::new_with_program(&program).expect("Expected");
         let mut vm = BinaryVirtualMachine::new(interpreter);
@@ -1844,11 +1847,12 @@ mod tests {
 
     #[test]
     fn lh_edge() {
-        let program: [u32; 4] = [
-            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, BINARY_INTERPRETER_MEM_SIZE as u32 - 2),
+        let program: [u32; 5] = [
+            utils::create_instruction_register_and_immediate(OpCode::LWI, Register::R0, 4 * 4),
             utils::create_instruction_two_registers(OpCode::LH, Register::R0, Register::R0),
             LOAD_0_IN_R1_INSTRUCTION,
-            SYSCALLI_EXIT_INSTRUCTION
+            SYSCALLI_EXIT_INSTRUCTION,
+            BINARY_INTERPRETER_MEM_SIZE - 2
         ];
         let interpreter = BinaryInterpreter::new_with_program(&program).expect("Expected");
         let mut vm = BinaryVirtualMachine::new(interpreter);
@@ -1858,11 +1862,12 @@ mod tests {
 
     #[test]
     fn lb_edge() {
-        let program: [u32; 4] = [
-            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, BINARY_INTERPRETER_MEM_SIZE as u32 - 1),
+        let program: [u32; 5] = [
+            utils::create_instruction_register_and_immediate(OpCode::LWI, Register::R0, 4 * 4),
             utils::create_instruction_two_registers(OpCode::LB, Register::R0, Register::R0),
             LOAD_0_IN_R1_INSTRUCTION,
-            SYSCALLI_EXIT_INSTRUCTION
+            SYSCALLI_EXIT_INSTRUCTION,
+            BINARY_INTERPRETER_MEM_SIZE - 1
         ];
         let interpreter = BinaryInterpreter::new_with_program(&program).expect("Expected");
         let mut vm = BinaryVirtualMachine::new(interpreter);
@@ -1911,12 +1916,31 @@ mod tests {
     }
 
     #[test]
+    fn edge_binary_interpreter() {
+        let mut interpreter = BinaryInterpreter::new();
+        assert_eq!(Some(0), interpreter.read_u8(BINARY_INTERPRETER_MEM_SIZE - 1));
+        assert_eq!(true, interpreter.write_u8(BINARY_INTERPRETER_MEM_SIZE - 1, 128 as u8));
+        assert_eq!(Some(128), interpreter.read_u8(BINARY_INTERPRETER_MEM_SIZE - 1));
+        
+        let mut interpreter = BinaryInterpreter::new();
+        assert_eq!(Some(0), interpreter.read_u16(BINARY_INTERPRETER_MEM_SIZE - 2));
+        assert_eq!(true, interpreter.write_u16(BINARY_INTERPRETER_MEM_SIZE - 2, 30230));
+        assert_eq!(Some(30230), interpreter.read_u16(BINARY_INTERPRETER_MEM_SIZE - 2));
+
+        let mut interpreter = BinaryInterpreter::new();
+        assert_eq!(Some(0), interpreter.read_u32(BINARY_INTERPRETER_MEM_SIZE - 4));
+        assert_eq!(true, interpreter.write_u32(BINARY_INTERPRETER_MEM_SIZE - 4, 30230));
+        assert_eq!(Some(30230), interpreter.read_u32(BINARY_INTERPRETER_MEM_SIZE - 4));
+    }
+
+    #[test]
     fn sw_edge() {
-        let program: [u32; 4] = [
-            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, BINARY_INTERPRETER_MEM_SIZE as u32 - 4),
+        let program: [u32; 5] = [
+            utils::create_instruction_register_and_immediate(OpCode::LWI, Register::R0, 4 * 4),
             utils::create_instruction_two_registers(OpCode::SW, Register::R0, Register::R0),
             LOAD_0_IN_R1_INSTRUCTION,
-            SYSCALLI_EXIT_INSTRUCTION
+            SYSCALLI_EXIT_INSTRUCTION,
+            BINARY_INTERPRETER_MEM_SIZE - 4
         ];
         let interpreter = BinaryInterpreter::new_with_program(&program).expect("Expected");
         let mut vm = BinaryVirtualMachine::new(interpreter);
@@ -1926,11 +1950,12 @@ mod tests {
 
     #[test]
     fn sh_edge() {
-        let program: [u32; 4] = [
-            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, BINARY_INTERPRETER_MEM_SIZE as u32 - 2),
+        let program: [u32; 5] = [
+            utils::create_instruction_register_and_immediate(OpCode::LWI, Register::R0, 4 * 4),
             utils::create_instruction_two_registers(OpCode::SH, Register::R0, Register::R0),
             LOAD_0_IN_R1_INSTRUCTION,
-            SYSCALLI_EXIT_INSTRUCTION
+            SYSCALLI_EXIT_INSTRUCTION,
+            BINARY_INTERPRETER_MEM_SIZE - 2
         ];
         let interpreter = BinaryInterpreter::new_with_program(&program).expect("Expected");
         let mut vm = BinaryVirtualMachine::new(interpreter);
@@ -1940,11 +1965,12 @@ mod tests {
 
     #[test]
     fn sb_edge() {
-        let program: [u32; 4] = [
-            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, BINARY_INTERPRETER_MEM_SIZE as u32 - 1),
+        let program: [u32; 5] = [
+            utils::create_instruction_register_and_immediate(OpCode::LWI, Register::R0, 4 * 4),
             utils::create_instruction_two_registers(OpCode::SB, Register::R0, Register::R0),
             LOAD_0_IN_R1_INSTRUCTION,
-            SYSCALLI_EXIT_INSTRUCTION
+            SYSCALLI_EXIT_INSTRUCTION,
+            BINARY_INTERPRETER_MEM_SIZE - 1
         ];
         let interpreter = BinaryInterpreter::new_with_program(&program).expect("Expected");
         let mut vm = BinaryVirtualMachine::new(interpreter);
