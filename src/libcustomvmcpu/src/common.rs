@@ -360,6 +360,74 @@ pub enum OpCode {
     /// divi $r0, 10
     /// 
     DIVI,
+
+    /// Load from memory into register
+    ///
+    /// # Example
+    ///
+    /// Copy 32-bit of memory at value from register %label into register `$r0`:
+    ///
+    /// 
+    /// lwi $r0, %label
+    /// 
+    ///
+    /// This only works when the left register is not read-only
+    LWI,
+
+    /// Store register into memory
+    ///
+    /// # Example
+    ///
+    /// Copy 32-bit value of register `$r0` into memory at value of register %label:
+    ///
+    /// 
+    /// swi $r0, %label
+    /// 
+    SWI,
+
+    /// Load from memory into register
+    ///
+    /// # Example
+    ///
+    /// Copy 16-bit of memory at value from register %label into register `$r0`:
+    ///
+    /// 
+    /// lhi $r0 , %label
+    /// 
+    LHI,
+
+    /// Store register into memory
+    ///
+    /// # Example
+    ///
+    /// Copy 16-bit value of register `$r0` into memory at value of register %label:
+    ///
+    /// 
+    /// sh $r0, %label
+    /// 
+    SHI,
+
+    /// Load from memory into register
+    ///
+    /// # Example
+    ///
+    /// Load 8-bit of memory at value from register %label into register `$r0`:
+    ///
+    /// 
+    /// lb $r0, %label
+    /// 
+    LBI,
+
+    /// Store register into memor
+    ///
+    /// # Example
+    ///
+    /// Copy 8-bit value of register `$r0` into memory at value of register %label:
+    ///
+    /// 
+    /// sh $r0, %label
+    /// y
+    SBI,
 }
 
 impl ToString for OpCode {
@@ -397,6 +465,12 @@ impl ToString for OpCode {
             Self::SUBI => "subi",
             Self::MULI => "muli",
             Self::DIVI => "divi",
+            Self::LWI => "lwi",
+            Self::SWI => "swi",
+            Self::LHI => "lhi",
+            Self::SHI => "shi",
+            Self::LBI => "lbi",
+            Self::SBI => "sbi",
         }).to_string()
     }
 }

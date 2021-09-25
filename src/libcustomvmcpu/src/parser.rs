@@ -67,6 +67,24 @@ pub enum Token {
     #[token("li")]
     KwLi,
 
+    #[token("lwi")]
+    KwLwI,
+
+    #[token("swi")]
+    KwSwI,
+
+    #[token("lhi")]
+    KwLhI,
+
+    #[token("shi")]
+    KwShI,
+
+    #[token("lbi")]
+    KwLbI,
+
+    #[token("sbi")]
+    KwSbI,
+
     #[token("add")]
     KwAdd,
 
@@ -212,7 +230,13 @@ pub fn get_instruction_parse_type(op_code: OpCode) -> InstructionParseType {
             | OpCode::ADDI
             | OpCode::SUBI
             | OpCode::MULI
-            | OpCode::DIVI => InstructionParseType::RegisterAndImmediate,
+            | OpCode::DIVI 
+            | OpCode::SWI
+            | OpCode::LWI
+            | OpCode::SHI
+            | OpCode::LHI
+            | OpCode::SBI
+            | OpCode::LBI => InstructionParseType::RegisterAndImmediate,
         OpCode::NOT
             | OpCode::J => InstructionParseType::Register,
         OpCode::SYSCALLI
@@ -338,6 +362,12 @@ impl Parser {
                 Token::KwLb => self.parse_instruction(OpCode::LB, current, lex),
                 Token::KwSb => self.parse_instruction(OpCode::SB, current, lex),
                 Token::KwLi => self.parse_instruction(OpCode::LI, current, lex),
+                Token::KwLwI => self.parse_instruction(OpCode::LWI, current, lex),
+                Token::KwSwI => self.parse_instruction(OpCode::SWI, current, lex),
+                Token::KwLhI => self.parse_instruction(OpCode::LHI, current, lex),
+                Token::KwShI => self.parse_instruction(OpCode::SHI, current, lex),
+                Token::KwLbI => self.parse_instruction(OpCode::LBI, current, lex),
+                Token::KwSbI => self.parse_instruction(OpCode::SBI, current, lex),
                 Token::KwAdd => self.parse_instruction(OpCode::ADD, current, lex),
                 Token::KwSub => self.parse_instruction(OpCode::SUB, current, lex),
                 Token::KwMul => self.parse_instruction(OpCode::MUL, current, lex),
@@ -386,10 +416,12 @@ impl Parser {
     }
 
     pub fn parse_mem_i32(&mut self, tok: &mut Option<Token>, lex: &mut Lexer<Token>) -> ParserExpr {
+        self.next(tok, lex);
+
         let pos = lex.span();
         let result = if let Some(expr) = self.parse_immediate(tok, lex) {
             self.expect_newline(tok, lex);
-            expr
+            Expr::StoreI32(Box::new(expr))
         }
         else {
             Expr::Error()
@@ -917,6 +949,21 @@ mod tests {
         assert_eq!(1, result.program.len());
         let expr = result.program.get(0).expect("Made sure above");
         assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::JGZI, Register::R0, Box::new(Expr::AddrToLabel("label".to_string()))), expr.expr);
+    }
+
+    #[test]
+    fn parse_i32() {
+        let result = parse_str(".i32 13");
+        assert_eq!(1, result.program.len());
+        let expr = result.program.get(0).expect("Made sure above");
+        assert_eq!(Expr::StoreI32(Box::new(Expr::Int(13))), expr.expr);
+
+        let result = parse_str(".i32 13\n.i32 9");
+        assert_eq!(2, result.program.len());
+        let expr = result.program.get(0).expect("Made sure above");
+        assert_eq!(Expr::StoreI32(Box::new(Expr::Int(13))), expr.expr);
+        let expr = result.program.get(1).expect("Made sure above");
+        assert_eq!(Expr::StoreI32(Box::new(Expr::Int(9))), expr.expr);
     }
 
     #[test]

@@ -310,6 +310,57 @@ impl<InterpreterImpl: Interpreter> VirtualMachine<InterpreterImpl> {
                         self.write_error(Error::Register);
                     }
                 },
+                OpCode::LWI => {
+                    self.binary_register_and_immediate_operation(instruction, |this: &mut Self, reg, imm|
+                        if let Some(result) = this.interpreter.read_u32(imm) {
+                            this.write_user_register_value(reg, result);
+                        }
+                        else {
+                            this.write_error(Error::Memory);
+                        }
+                    );
+                },
+                OpCode::SWI => {
+                    self.binary_register_and_immediate_operation(instruction, |this: &mut Self, reg, imm|
+                        if !this.interpreter.write_u32(imm, this.read_user_register_value(reg)) {
+                            this.write_error(Error::Memory);
+                        }
+                    );
+                },
+                OpCode::LHI => {
+                    self.binary_register_and_immediate_operation(instruction, |this: &mut Self, reg, imm|
+                        if let Some(result) = this.interpreter.read_u16(imm) {
+                            this.write_user_register_value(reg, result as u32);
+                        }
+                        else {
+                            this.write_error(Error::Memory);
+                        }
+                    );
+                },
+                OpCode::SHI => {
+                    self.binary_register_and_immediate_operation(instruction, |this: &mut Self, reg, imm|
+                        if !this.interpreter.write_u16(imm, (this.read_user_register_value(reg) & 0x0000FFFF).try_into().expect("Unexpected error")) {
+                            this.write_error(Error::Memory);
+                        }
+                    );
+                },
+                OpCode::LBI => {
+                    self.binary_register_and_immediate_operation(instruction, |this: &mut Self, reg, imm|
+                        if let Some(result) = this.interpreter.read_u8(imm) {
+                            this.write_user_register_value(reg, result as u32);
+                        }
+                        else {
+                            this.write_error(Error::Memory);
+                        }
+                    );
+                },
+                OpCode::SBI => {
+                    self.binary_register_and_immediate_operation(instruction, |this: &mut Self, reg, imm|
+                        if !this.interpreter.write_u8(imm, (this.read_user_register_value(reg) & 0x000000FF).try_into().expect("Unexpected error")) {
+                            this.write_error(Error::Memory);
+                        }
+                    );
+                },
                 // Arithmetics
                 OpCode::ADD => {
                     self.binary_register_operation_write0(instruction, |_: &mut Self, x, y| x.wrapping_add(y));
@@ -453,6 +504,17 @@ impl<InterpreterImpl: Interpreter> VirtualMachine<InterpreterImpl> {
           let val = self.read_user_register_value(reg_value);
           let result = binary_op(self, val, imm);
           self.write_user_register_value(reg_value, result);
+      }
+      else {
+          eprintln!("Register {:?} does not exists!", reg);
+          self.write_error(Error::Register);
+      }
+    }
+
+    fn binary_register_and_immediate_operation(&mut self, instruction: u32, binary_op: fn (&mut Self, Register, u32)) {
+      let (reg, imm) = Self::get_register_and_immediate(instruction);
+      if let Some(reg_value) = Register::from_u8(reg) {
+          binary_op(self, reg_value, imm);
       }
       else {
           eprintln!("Register {:?} does not exists!", reg);
@@ -1085,6 +1147,135 @@ mod tests {
         assert_eq!(0, vm.execute_first());
         assert_eq!(234, vm.get_interpreter().read_u8(5 * 4).expect("Cannot read memory address"));
         assert_eq!(234, vm.get_interpreter().read_u32(5 * 4).expect("Cannot read memory address"));
+    }
+
+    #[test]
+    fn lwi() {
+        let program: [u32; 4] = [
+            utils::create_instruction_register_and_immediate(OpCode::LWI, Register::R0, 3 * 4),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+            0xFF00FF00
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(0xFF00FF00, vm.read_register_value(Register::R0));
+    }
+
+    #[test]
+    fn swi() {
+        let program: [u32; 4] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 1033),
+            utils::create_instruction_register_and_immediate(OpCode::SWI, Register::R0, 4 * 4),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(1033, vm.get_interpreter().read_u32(4 * 4).expect("Cannot read memory address"));
+    }
+
+    #[test]
+    fn lhi() {
+        let program: [u32; 4] = [
+            utils::create_instruction_register_and_immediate(OpCode::LHI, Register::R0, 3 * 4),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+            1032 // Will be stored in [0] and [1] of integer 0124, because little endian
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(1032, vm.read_register_value(Register::R0));
+    }
+
+    #[test]
+    fn shi() {
+        let program: [u32; 4] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 1033),
+            utils::create_instruction_register_and_immediate(OpCode::SHI, Register::R0, 4 * 4),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(1033, vm.get_interpreter().read_u16(4 * 4).expect("Cannot read memory address"));
+    }
+
+    #[test]
+    fn lbi() {
+        let program: [u32; 4] = [
+            utils::create_instruction_register_and_immediate(OpCode::LBI, Register::R0, 3 * 4),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+            234 // Will be stored in [0] and [1] of integer 0124, because little endian
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(234, vm.read_register_value(Register::R0));
+    }
+
+    #[test]
+    fn sbi() {
+        let program: [u32; 4] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 234),
+            utils::create_instruction_register_and_immediate(OpCode::SBI, Register::R0, 4 * 4),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(234, vm.get_interpreter().read_u8(4 * 4).expect("Cannot read memory address"));
+    }
+
+    #[test]
+    fn lbi_partial() {
+        let program: [u32; 4] = [
+            utils::create_instruction_register_and_immediate(OpCode::LBI, Register::R0, 3 * 4),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+            1024 + 234 // Will be stored in [0] and [1] of integer 0124, because little endian
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(234, vm.read_register_value(Register::R0));
+    }
+
+    #[test]
+    fn sbi_partial() {
+        let program: [u32; 4] = [
+            utils::create_instruction_register_and_immediate(OpCode::LI, Register::R0, 1024 + 234),
+            utils::create_instruction_register_and_immediate(OpCode::SBI, Register::R0, 4 * 4),
+            LOAD_0_IN_R1_INSTRUCTION,
+            SYSCALLI_EXIT_INSTRUCTION,
+        ];
+
+        let interpreter = BinaryInterpreter::new_with_program(&program).expect("Unexpected error!");
+        let mut vm = BinaryVirtualMachine::new(interpreter);
+
+        assert_eq!(0, vm.execute_first());
+        assert_eq!(234, vm.get_interpreter().read_u8(4 * 4).expect("Cannot read memory address"));
+        assert_eq!(234, vm.get_interpreter().read_u32(4 * 4).expect("Cannot read memory address"));
     }
 
     #[test]

@@ -151,6 +151,24 @@ lb $x, $y
 // Store integer x to memory position y
 sb $x, $y
 
+// Load word (32-bit integer) from memory position y into x
+lwi $x, %y
+
+// Store word (32-bit integer) x to memory position y
+swi $x, %y
+
+// Load half-integer from memory position y into x
+lhi $x, %y
+
+// Store half-integer x to memory position y
+shi $x, %y
+
+// Load integer from memory position y into x
+lbi $x, %y
+
+// Store integer x to memory position y
+sbi $x, %y
+
 // Store immediate y into x (20-bit, is two's complement)
 li $x, %y
 
@@ -274,3 +292,9 @@ The following system calls are supported
 - subi: 0x23
 - muli: 0x23
 - divi: 0x24
+- lwi: 0x25
+- swi: 0x26
+- lhi: 0x27
+- shi: 0x28
+- lbi: 0x29
+- sbi: 0x30
