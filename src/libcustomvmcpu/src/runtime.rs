@@ -19,7 +19,6 @@
 
 use std::convert::TryFrom;
 use std::convert::TryInto;
-use std::slice::SliceIndex;
 use num_traits::FromPrimitive;
 use super::common::{OpCode, Register, Error, LAST_REGISTER, ERROR_START_NUM};
 
@@ -426,19 +425,19 @@ impl<InterpreterImpl: Interpreter> VirtualMachine<InterpreterImpl> {
                     self.write_register_value(Register::IP, address.wrapping_sub(4)); // Minus 4 because this will be added after every cycle
                 },
                 OpCode::JZI => {
-                    self.unary_check_write_ip(instruction, |this: &mut Self, x| x == 0);
+                    self.unary_check_write_ip(instruction, |_: &mut Self, x| x == 0);
                 },
                 OpCode::JNZI => {
-                    self.unary_check_write_ip(instruction, |this: &mut Self, x| x != 0);
+                    self.unary_check_write_ip(instruction, |_: &mut Self, x| x != 0);
                 },
                 OpCode::JLZI => {
                     self.unary_check_write_ip(instruction,
-                        |this: &mut Self, x| i32::from_le_bytes(u32::to_le_bytes(x)) < 0
+                        |_: &mut Self, x| i32::from_le_bytes(u32::to_le_bytes(x)) < 0
                     );
                 },
                 OpCode::JGZI => {
                     self.unary_check_write_ip(instruction,
-                        |this: &mut Self, x| i32::from_le_bytes(u32::to_le_bytes(x)) > 0
+                        |_: &mut Self, x| i32::from_le_bytes(u32::to_le_bytes(x)) > 0
                     );
                 },
                 OpCode::AND => {

@@ -421,7 +421,7 @@ impl Parser {
         self.next(tok, lex);
 
         let pos = lex.span();
-        let result = if let Some(string) = self.parse_string(tok, lex) {
+        let result = if let Some(string) = self.parse_immediate_string(tok, lex) {
             self.expect_newline(tok, lex);
             Expr::StoreStr(string)
         }
@@ -432,7 +432,7 @@ impl Parser {
         return ParserExpr { pos, expr: result };
     }
 
-    pub fn parse_string(&mut self, tok: &mut Option<Token>, lex: &mut Lexer<Token>) -> Option<String> {
+    pub fn parse_immediate_string(&mut self, tok: &mut Option<Token>, lex: &mut Lexer<Token>) -> Option<String> {
         let pos = lex.span();
         eprintln!("Expect: {:?}", *tok);
 

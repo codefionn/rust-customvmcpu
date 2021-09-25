@@ -1,0 +1,12 @@
+/home/user/Nextcloud/prog/rust-vmcpu/src/compiler/target/debug/deps/proc_macro2-06e97d6f0dfb172f.rmeta: /home/user/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro2-1.0.29/src/lib.rs /home/user/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro2-1.0.29/src/marker.rs /home/user/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro2-1.0.29/src/parse.rs /home/user/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro2-1.0.29/src/detection.rs /home/user/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro2-1.0.29/src/fallback.rs /home/user/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro2-1.0.29/src/wrapper.rs
+
+/home/user/Nextcloud/prog/rust-vmcpu/src/compiler/target/debug/deps/libproc_macro2-06e97d6f0dfb172f.rlib: /home/user/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro2-1.0.29/src/lib.rs /home/user/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro2-1.0.29/src/marker.rs /home/user/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro2-1.0.29/src/parse.rs /home/user/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro2-1.0.29/src/detection.rs /home/user/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro2-1.0.29/src/fallback.rs /home/user/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro2-1.0.29/src/wrapper.rs
+
+/home/user/Nextcloud/prog/rust-vmcpu/src/compiler/target/debug/deps/proc_macro2-06e97d6f0dfb172f.d: /home/user/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro2-1.0.29/src/lib.rs /home/user/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro2-1.0.29/src/marker.rs /home/user/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro2-1.0.29/src/parse.rs /home/user/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro2-1.0.29/src/detection.rs /home/user/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro2-1.0.29/src/fallback.rs /home/user/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro2-1.0.29/src/wrapper.rs
+
+/home/user/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro2-1.0.29/src/lib.rs:
+/home/user/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro2-1.0.29/src/marker.rs:
+/home/user/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro2-1.0.29/src/parse.rs:
+/home/user/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro2-1.0.29/src/detection.rs:
+/home/user/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro2-1.0.29/src/fallback.rs:
+/home/user/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro2-1.0.29/src/wrapper.rs:

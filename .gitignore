@@ -2,3 +2,4 @@
 /src/libcustomvmcpu/target
 /src/exampleprogramwriter/target
 /src/interpreter/target
+/src/compiler/target
