@@ -18,9 +18,8 @@
  */
 
 use std::collections::HashMap;
-use std::iter::{Filter, Iterator};
+use std::iter::Iterator;
 use std::mem::size_of;
-use std::rc::Rc;
 use super::common::{OpCode, Register, Error, LAST_REGISTER, ERROR_START_NUM};
 use super::runtime::utils;
 use super::parser::{Expr, ParserExpr, ParserResult, ParserError, ParserErrorType, parse_str};
@@ -208,6 +207,15 @@ mod tests_compiler {
     fn li() {
         let result = parse_and_compile_str("li $r1, 4");
         assert_eq!(Some(utils::create_instruction_register_and_immediate(OpCode::LI, Register::R1, 4).to_le_bytes().to_vec()), result);
+    }
+
+    #[test]
+    fn storei32() {
+        let result = parse_and_compile_str(".i32 42");
+        assert_eq!(Some(i32::to_le_bytes(42).to_vec()), result);
+
+        let result = parse_and_compile_str(".i32 42\n.i32 145");
+        assert_eq!(Some([i32::to_le_bytes(42), i32::to_le_bytes(145)].concat().to_vec()), result);
     }
 
     #[test]

@@ -17,10 +17,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use std::iter::Peekable;
-
-use super::common::{OpCode, Register, Error, LAST_REGISTER, ERROR_START_NUM};
-use super::runtime::utils;
+use super::common::{OpCode, Register};
 
 extern crate logos;
 use logos::{Logos, Lexer};
@@ -42,6 +39,9 @@ pub enum Token {
 
     #[regex("[1-9][0-9]*|0")]
     Int,
+
+    #[regex("\"([^\"\\\\]|\\\\.)*\"")]
+    String,
 
     #[token("cpy")]
     KwCpy,
@@ -273,6 +273,7 @@ pub enum ParserErrorType {
     ExpectedNewLine,
     ExpectedToken(&'static Token),
     CannotCompileExpression,
+    InvalidEscapeSquence
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -397,6 +398,7 @@ impl Parser {
                 Token::Reg => ParserExpr { pos: lex.span(), expr: Expr::Error() },
                 Token::Hex => ParserExpr { pos: lex.span(), expr: Expr::Error() },
                 Token::Int => ParserExpr { pos: lex.span(), expr: Expr::Error() },
+                Token::String => ParserExpr { pos: lex.span(), expr: Expr::Error() },
                 Token::Comma => ParserExpr { pos: lex.span(), expr: Expr::Error() },
                 Token::OpAdd => ParserExpr { pos: lex.span(), expr: Expr::Error() },
                 Token::OpSub => ParserExpr { pos: lex.span(), expr: Expr::Error() },
@@ -407,12 +409,75 @@ impl Parser {
                 Token::NewLine => ParserExpr { pos: lex.span(), expr: Expr::Error() },
                 Token::Error  => ParserExpr { pos: lex.span(), expr: Expr::Error() },
                 Token::KwMemI32 => self.parse_mem_i32(current, lex),
-                Token::KwMemStr => ParserExpr { pos: lex.span(), expr: Expr::Error() }
+                Token::KwMemStr => self.parse_mem_str(current, lex),
             })
         }
         else {
             None
         };
+    }
+
+    pub fn parse_mem_str(&mut self, tok: &mut Option<Token>, lex: &mut Lexer<Token>) -> ParserExpr {
+        self.next(tok, lex);
+
+        let pos = lex.span();
+        let result = if let Some(string) = self.parse_string(tok, lex) {
+            self.expect_newline(tok, lex);
+            Expr::StoreStr(string)
+        }
+        else {
+            Expr::Error()
+        };
+
+        return ParserExpr { pos, expr: result };
+    }
+
+    pub fn parse_string(&mut self, tok: &mut Option<Token>, lex: &mut Lexer<Token>) -> Option<String> {
+        let pos = lex.span();
+        eprintln!("Expect: {:?}", *tok);
+
+        if let Some(Token::String) = tok {
+            let tokstr = lex.slice();
+            let tokstr = tokstr.get(1..(tokstr.len() - 1)).expect("Made sure by lexer").to_string();
+
+            let mut result = String::with_capacity(tokstr.len());
+            let mut i = 0;
+            while i < tokstr.len() {
+                let c: char = tokstr.chars().nth(i).unwrap();
+                if c == '\\' {
+                    // Escape sequence
+                    i += 1;
+                    let c: char = tokstr.chars().nth(i).unwrap();
+                    let c = match c {
+                        'n' => '\n',
+                        'r' => '\r',
+                        't' => '\t',
+                        '0' => '\0',
+                        '"' => '"',
+                        '\'' => '\'',
+                        _ => {
+                            self.errors.push(ParserError { pos: pos.start+i..pos.start+i, err_type: ParserErrorType::InvalidEscapeSquence });
+                            '?'
+                        }
+                    };
+
+                    result += c.to_string().as_str();
+                }
+                else {
+                    result += c.to_string().as_str();
+                }
+
+                i += 1;
+
+                eprintln!("String: {}", result);
+            }
+
+            self.next(tok, lex);
+            Some(result.to_string())
+        }
+        else {
+            None
+        }
     }
 
     pub fn parse_mem_i32(&mut self, tok: &mut Option<Token>, lex: &mut Lexer<Token>) -> ParserExpr {
@@ -952,7 +1017,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_i32() {
+    fn parse_mem_i32() {
         let result = parse_str(".i32 13");
         assert_eq!(1, result.program.len());
         let expr = result.program.get(0).expect("Made sure above");
@@ -964,6 +1029,14 @@ mod tests {
         assert_eq!(Expr::StoreI32(Box::new(Expr::Int(13))), expr.expr);
         let expr = result.program.get(1).expect("Made sure above");
         assert_eq!(Expr::StoreI32(Box::new(Expr::Int(9))), expr.expr);
+    }
+
+    #[test]
+    fn parse_mem_str() {
+        let result = parse_str(".str \"Hello, world!\"");
+        assert_eq!(1, result.program.len());
+        let expr = result.program.get(0).expect("Made sure above");
+        assert_eq!(Expr::StoreStr("Hello, world!".to_string()), expr.expr);
     }
 
     #[test]
