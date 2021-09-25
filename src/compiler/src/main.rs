@@ -16,7 +16,23 @@ fn main() {
         exit(1)
     }
     let args = args.get(1..).expect("Unexpected error");
-    let outfile: Option<String> = None;
+    let mut outfile: Option<String> = None;
+
+    let mut select = 0;
+    while args[select].starts_with("--") || args[select].starts_with("-") {
+        match args[select].as_str() {
+            "-o" | "--out" => {
+                select += 1;
+                outfile = Some(args.get(select).expect("Expected register name").clone());
+            },
+            _ => {
+                eprintln!("Unknown Option: {}", args[select]);
+                exit(1);
+            }
+        }
+
+        select += 1;
+    }
 
     let file = args.last().expect("Expected filepath"); // Check above: not empty
     let input: String = if file != "-" {
