@@ -1,3 +1,5 @@
+extern crate libcustomvmcpu;
+
 use libcustomvmcpu::common::{Register, OpCode};
 use libcustomvmcpu::runtime::utils;
 

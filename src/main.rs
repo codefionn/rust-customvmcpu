@@ -119,6 +119,7 @@ fn main() {
         exit(exit_code);
     }
     else {
+        eprintln!("Failed");
         exit(ERROR_START_NUM as i32 + Error::Memory as i32);
     }
 }
