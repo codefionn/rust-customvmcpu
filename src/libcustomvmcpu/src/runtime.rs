@@ -99,13 +99,8 @@ impl BinaryInterpreter {
 impl Interpreter for BinaryInterpreter {
     #[must_use]
     fn read_u32(&self, pos: u32) -> Option<u32> {
-        let result = self.memory.get(pos as usize..(pos as usize + 4));
-        return if let Some(result) = result {
-            Some(u32::from_le_bytes(result.try_into().expect("Unexpected error")))
-        }
-        else {
-            None
-        }
+        let result = self.memory.get(pos as usize..(pos as usize + 4))?;
+        Some(u32::from_le_bytes(result.try_into().expect("Unexpected error")))
     }
 
     #[must_use]
@@ -122,13 +117,8 @@ impl Interpreter for BinaryInterpreter {
 
     #[must_use]
     fn read_u16(&self, pos: u32) -> Option<u16> {
-        let result = self.memory.get(pos as usize..(pos as usize + 2));
-        return if let Some(result) = result {
-            Some(u16::from_le_bytes(result.try_into().expect("Unexpected error")))
-        }
-        else {
-            None
-        }
+        let result = self.memory.get(pos as usize..(pos as usize + 2))?;
+        Some(u16::from_le_bytes(result.try_into().expect("Unexpected error")))
     }
 
     #[must_use]
@@ -145,13 +135,8 @@ impl Interpreter for BinaryInterpreter {
 
     #[must_use]
     fn read_u8(&self, pos: u32) -> Option<u8> {
-        let result = self.memory.get(pos as usize);
-        return if let Some(&result) = result {
-            Some(result)
-        }
-        else {
-            None
-        }
+        let result = self.memory.get(pos as usize)?;
+        Some(*result)
     }
 
     #[must_use]
