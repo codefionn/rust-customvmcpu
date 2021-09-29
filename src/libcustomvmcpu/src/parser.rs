@@ -624,7 +624,7 @@ impl Parser {
                     let result = Some(Expr::AddrToLabel(lex.slice().get(1..).expect("Made sure by lexer").into()));
                     self.next(current, lex); // eat addr_to_label
                     result
-                }
+                },
                 _ => {
                     self.errors.push(ParserError { pos: lex.span(), err_type: ParserErrorType::ExpectedValidImmediate });
                     None

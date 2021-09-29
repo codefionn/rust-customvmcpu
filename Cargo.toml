@@ -1,3 +1,11 @@
+[workspace]
+members = [
+	"src/compiler",
+	"src/exampleprogramwriter",
+	"src/interpreter",
+	"src/libcustomvmcpu"
+]
+
 [package]
 name = "rust-customvmcpu"
 version = "0.1.0"
