@@ -637,6 +637,13 @@ impl Parser {
                     self.next(current, lex); // eat addr_to_label
                     result
                 },
+                Token::OpOpenBracket => {
+                    self.next(current, lex); // eat (
+                    let result = self.parse_immediate(current, lex);
+                    self.expect_token(current, lex, &Token::OpCloseBracket);
+                    self.next(current, lex); // eat )
+                    result
+                },
                 _ => {
                     self.errors.push(ParserError { pos: lex.span(), err_type: ParserErrorType::ExpectedValidImmediate });
                     None
@@ -1234,6 +1241,27 @@ mod tests {
             assert_eq!(1, result.program.len());
             let expr = result.program.get(0).expect("Made sure above");
             assert_eq!(Expr::InstructionImmediate(op_code, ImmediateExpr::Add(Box::new(ImmediateExpr::Mul(Box::new(ImmediateExpr::Int(1)), Box::new(ImmediateExpr::Int(2)))), Box::new(ImmediateExpr::Int(3)))), expr.expr);
+        }
+    }
+
+    #[test]
+    fn parse_instruction_immediate_mul_add_with_brackets() {
+        let op_codes = [ OpCode::SYSCALLI, OpCode::JI, OpCode::JIL ];
+
+        for op_code in op_codes {
+            let result = parse_string(&(op_code.to_string() + " (1 + 2) * 3"));
+            assert_eq!(1, result.program.len());
+            let expr = result.program.get(0).expect("Made sure above");
+            assert_eq!(Expr::InstructionImmediate(op_code, ImmediateExpr::Mul(Box::new(ImmediateExpr::Add(Box::new(ImmediateExpr::Int(1)), Box::new(ImmediateExpr::Int(2)))), Box::new(ImmediateExpr::Int(3)))), expr.expr);
+        }
+
+        let op_codes = [ OpCode::SYSCALLI, OpCode::JI, OpCode::JIL ];
+
+        for op_code in op_codes {
+            let result = parse_string(&(op_code.to_string() + " 1 * (2 + 3)"));
+            assert_eq!(1, result.program.len());
+            let expr = result.program.get(0).expect("Made sure above");
+            assert_eq!(Expr::InstructionImmediate(op_code, ImmediateExpr::Mul(Box::new(ImmediateExpr::Int(1)), Box::new(ImmediateExpr::Add(Box::new(ImmediateExpr::Int(2)), Box::new(ImmediateExpr::Int(3)))))), expr.expr);
         }
     }
 }

@@ -246,8 +246,29 @@ mod tests_compiler {
         let result = parse_and_compile_str(".i32 1 + 2 * 3");
         assert_eq!(Some([i32::to_le_bytes(7)].concat().to_vec()), result, "Operator precedence error");
 
-        let result = parse_and_compile_str(".i32 1 * 2 + 3");
+        let result = parse_and_compile_str(".i32 4 * 2 + 3");
+        assert_eq!(Some([i32::to_le_bytes(11)].concat().to_vec()), result, "Operator precedence error");
+
+        let result = parse_and_compile_str(".i32 1 + (2 * 3)");
+        assert_eq!(Some([i32::to_le_bytes(7)].concat().to_vec()), result, "Operator precedence error");
+
+        let result = parse_and_compile_str(".i32 (1 * 2) + 3");
         assert_eq!(Some([i32::to_le_bytes(5)].concat().to_vec()), result, "Operator precedence error");
+
+        let result = parse_and_compile_str(".i32 ((1 * 2) + 3)");
+        assert_eq!(Some([i32::to_le_bytes(5)].concat().to_vec()), result, "Operator precedence error");
+
+        let result = parse_and_compile_str(".i32 (((1 * 2) + 3))");
+        assert_eq!(Some([i32::to_le_bytes(5)].concat().to_vec()), result, "Operator precedence error");
+
+        let result = parse_and_compile_str(".i32 ((((1 * 2)) + 3))");
+        assert_eq!(Some([i32::to_le_bytes(5)].concat().to_vec()), result, "Operator precedence error");
+
+        let result = parse_and_compile_str(".i32 (1 + 2) * 3");
+        assert_eq!(Some([i32::to_le_bytes(9)].concat().to_vec()), result, "Operator precedence error");
+
+        let result = parse_and_compile_str(".i32 4 * (2 + 3)");
+        assert_eq!(Some([i32::to_le_bytes(20)].concat().to_vec()), result, "Operator precedence error");
     }
 
     #[test]
