@@ -22,6 +22,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "customvmcpu-json"
+version = "0.1.0"
+dependencies = [
+ "json",
+ "libcustomvmcpu",
+]
+
+[[package]]
 name = "exampleprogramwriter"
 version = "0.1.0"
 dependencies = [
@@ -40,6 +48,12 @@ version = "0.1.0"
 dependencies = [
  "libcustomvmcpu",
 ]
+
+[[package]]
+name = "json"
+version = "0.12.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "078e285eafdfb6c4b434e0d31e8cfcb5115b651496faca5749b88fafd4f23bfd"
 
 [[package]]
 name = "libcustomvmcpu"

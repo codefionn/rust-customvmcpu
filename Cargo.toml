@@ -3,7 +3,8 @@ members = [
 	"src/compiler",
 	"src/exampleprogramwriter",
 	"src/interpreter",
-	"src/libcustomvmcpu"
+	"src/libcustomvmcpu",
+	"src/customvmcpu-json"
 ]
 
 [package]

@@ -21,6 +21,7 @@ use super::common::{OpCode, Register};
 
 extern crate logos;
 use logos::{Logos, Lexer};
+
 use more_asserts::{assert_ge, debug_assert_ge};
 
 #[derive(Logos, Debug, PartialEq, Clone, Copy)]
@@ -257,7 +258,7 @@ pub enum Expr {
     Error(),
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, PartialOrd, Clone)]
 pub enum ImmediateExpr {
     Int(u32),
     Add(Box<ImmediateExpr>, Box<ImmediateExpr>),
@@ -268,6 +269,7 @@ pub enum ImmediateExpr {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+#[repr(u32)]
 pub enum ParserErrorType {
     /// Cannot lex expression
     CannotParse,
@@ -281,6 +283,24 @@ pub enum ParserErrorType {
     ExpectedToken(&'static Token),
     CannotCompileExpression,
     InvalidEscapeSquence
+}
+
+impl ToString for ParserErrorType {
+    fn to_string(&self) -> String {
+        use ParserErrorType::*;
+        (match self {
+            CannotParse => "CannotParse",
+            ExpectedRegister => "ExpectedRegister",
+            ExpectedValidRegister => "ExpectedValidRegister",
+            ExpectedImmediate => "ExpectedImmediate",
+            ExpectedValidImmediate => "ExpectedValidImmediate",
+            ExpectedLabel => "ExpectedLabel",
+            ExpectedNewLine => "ExpectedNewLine",
+            ExpectedToken(_) => "ExpectedToken",
+            CannotCompileExpression => "CannotCompileExpression",
+            InvalidEscapeSquence => "InvalidEscapeSquence"
+        }).to_string()
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
