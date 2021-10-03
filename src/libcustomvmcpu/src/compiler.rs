@@ -69,11 +69,25 @@ impl<'source> Compiler<'source> {
                     None
                 }
             },
+            ImmediateExpr::Add(expr0, expr1) =>
+                self.interpret_immediate_biop(expr0, expr1, |x, y| x.wrapping_add(y)),
+            ImmediateExpr::Sub(expr0, expr1) =>
+                self.interpret_immediate_biop(expr0, expr1, |x, y| x.wrapping_sub(y)),
+            ImmediateExpr::Mul(expr0, expr1) =>
+                self.interpret_immediate_biop(expr0, expr1, |x, y| x.wrapping_mul(y)),
+            ImmediateExpr::Div(expr0, expr1) =>
+                self.interpret_immediate_biop(expr0, expr1, |x, y| x.wrapping_div(y)),
             _ => {
                 // No such immediate
                 None
             }
         }
+    }
+
+    fn interpret_immediate_biop(&mut self, expr0: &ImmediateExpr, expr1: &ImmediateExpr, fn_bi_op: fn (u32, u32) -> u32) -> Option<u32> {
+        let result0 = self.interpret_immediate(expr0)?;
+        let result1 = self.interpret_immediate(expr1)?;
+        Some(fn_bi_op(result0, result1))
     }
 
     fn compile_expr(&mut self, expr: &ParserExpr, prog_pos: u32) -> CompileExprResult {
@@ -216,6 +230,24 @@ mod tests_compiler {
 
         let result = parse_and_compile_str(".i32 42\n.i32 145");
         assert_eq!(Some([i32::to_le_bytes(42), i32::to_le_bytes(145)].concat().to_vec()), result);
+
+        let result = parse_and_compile_str(".i32 42 + 1");
+        assert_eq!(Some([i32::to_le_bytes(43)].concat().to_vec()), result);
+
+        let result = parse_and_compile_str(".i32 42 - 1");
+        assert_eq!(Some([i32::to_le_bytes(41)].concat().to_vec()), result);
+
+        let result = parse_and_compile_str(".i32 3 * 4");
+        assert_eq!(Some([i32::to_le_bytes(12)].concat().to_vec()), result);
+
+        let result = parse_and_compile_str(".i32 12 / 4");
+        assert_eq!(Some([i32::to_le_bytes(3)].concat().to_vec()), result);
+
+        let result = parse_and_compile_str(".i32 1 + 2 * 3");
+        assert_eq!(Some([i32::to_le_bytes(7)].concat().to_vec()), result, "Operator precedence error");
+
+        let result = parse_and_compile_str(".i32 1 * 2 + 3");
+        assert_eq!(Some([i32::to_le_bytes(5)].concat().to_vec()), result, "Operator precedence error");
     }
 
     #[test]

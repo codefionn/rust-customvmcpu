@@ -123,7 +123,7 @@ manipulate the immediate. Supported operations:
 
 ```
 
-Note: there's no operator precendence, but operations can be wrapped in curly
+Note: there's operator precendence and operations can be wrapped in curly
 brackets ().
 
 ## Instructions

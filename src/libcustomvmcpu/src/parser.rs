@@ -248,10 +248,10 @@ pub fn get_instruction_parse_type(op_code: OpCode) -> InstructionParseType {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expr {
     InstructionRegister(OpCode, Register),
-    InstructionImmediate(OpCode, Box<ImmediateExpr>),
+    InstructionImmediate(OpCode, ImmediateExpr),
     InstructionTwoRegisters(OpCode, Register, Register),
-    InstructionRegisterAndImmediate(OpCode, Register, Box<ImmediateExpr>),
-    StoreI32(Box<ImmediateExpr>),
+    InstructionRegisterAndImmediate(OpCode, Register, ImmediateExpr),
+    StoreI32(ImmediateExpr),
     StoreStr(String),
     Label(String),
     Error(),
@@ -489,7 +489,7 @@ impl Parser {
         let pos = lex.span();
         let result = if let Some(expr) = self.parse_immediate(tok, lex) {
             self.expect_newline(tok, lex);
-            Expr::StoreI32(Box::new(expr))
+            Expr::StoreI32(expr)
         }
         else {
             Expr::Error()
@@ -531,7 +531,7 @@ impl Parser {
                 self.next(tok, lex);
                 let end = lex.span();
                 if let Some(imm) = self.parse_immediate(tok, lex) {
-                    ParserExpr { pos: combine_range(start.clone(), end), expr: Expr::InstructionImmediate(op_code, Box::new(imm)) }
+                    ParserExpr { pos: combine_range(start.clone(), end), expr: Expr::InstructionImmediate(op_code, imm) }
                 }
                 else {
                     ParserExpr { pos: combine_range(start.clone(), end), expr: Expr::Error() }
@@ -559,7 +559,7 @@ impl Parser {
 
                 let end = lex.span();
                 if let (Some(reg), Some(imm)) = (reg_raw, imm_raw) {
-                    ParserExpr { pos: combine_range(start.clone(), end), expr: Expr::InstructionRegisterAndImmediate(op_code, reg, Box::new(imm)) }
+                    ParserExpr { pos: combine_range(start.clone(), end), expr: Expr::InstructionRegisterAndImmediate(op_code, reg, imm) }
                 }
                 else {
                     ParserExpr { pos: combine_range(start.clone(), end), expr: Expr::Error() }
@@ -620,6 +620,11 @@ impl Parser {
     }
 
     fn parse_immediate(&mut self, current: &mut Option<Token>, lex: &mut Lexer<Token>) -> Option<ImmediateExpr> {
+        let primary_expr = self.parse_immediate_primary(current, lex)?;
+        return Some(self.parse_immediate_expr(current, lex, primary_expr, 0));
+    }
+
+    fn parse_immediate_primary(&mut self, current: &mut Option<Token>, lex: &mut Lexer<Token>) -> Option<ImmediateExpr> {
         if let Some(tok) = current {
             match tok {
                 Token::Int => {
@@ -641,6 +646,67 @@ impl Parser {
         else {
             self.errors.push(ParserError { pos: lex.span(), err_type: ParserErrorType::ExpectedImmediate });
             None
+        }
+    }
+
+    fn parse_immediate_expr(&mut self, current: &mut Option<Token>, lex: &mut Lexer<Token>, lhs: ImmediateExpr, min_precedence: usize) -> ImmediateExpr {
+        let mut result_lhs = lhs;
+        loop {
+            let prec_cur_op = Self::get_precedence(current);
+            if !(prec_cur_op > 0 && prec_cur_op >= min_precedence) {
+                return result_lhs;
+            }
+
+            let op = current.expect("Made sure get_precedence").clone();
+            self.next(current, lex);
+
+            let rhs = self.parse_immediate_primary(current, lex);
+            if let Some(mut rhs) = rhs {
+                let mut prec_next_op = Self::get_precedence(current);
+                while prec_next_op > prec_cur_op {
+                    rhs = self.parse_immediate_expr(current, lex, rhs.clone(), prec_cur_op + 1);
+                    self.next(current, lex);
+                    prec_next_op = Self::get_precedence(current);
+                }
+
+                result_lhs = Self::parse_immediate_combine(&op, result_lhs, rhs);
+            }
+            else {
+                return result_lhs; // Error: Expected primary
+            }
+        }
+    }
+
+    fn parse_immediate_combine(op: &Token, lhs: ImmediateExpr, rhs: ImmediateExpr) -> ImmediateExpr {
+        return match op {
+            Token::OpAdd => {
+                ImmediateExpr::Add(Box::new(lhs), Box::new(rhs))
+            },
+            Token::OpSub => {
+                ImmediateExpr::Sub(Box::new(lhs), Box::new(rhs))
+            },
+            Token::OpMul => {
+                ImmediateExpr::Mul(Box::new(lhs), Box::new(rhs))
+            },
+            Token::OpDiv => {
+                ImmediateExpr::Div(Box::new(lhs), Box::new(rhs))
+            },
+            _ => {
+                panic!("Not implemented for {:?}", op);
+            }
+        };
+    }
+
+    fn get_precedence(tok: &Option<Token>) -> usize {
+        return if let Some(tok) = tok {
+            match tok  {
+                Token::OpAdd | Token::OpSub => 1,
+                Token::OpMul | Token::OpDiv => 2,
+                _ => 0
+            }
+        }
+        else {
+            0
         }
     }
 
@@ -955,7 +1021,7 @@ mod tests {
         println!("{:?}", result.errors);
         assert_eq!(1, result.program.len());
         let expr = result.program.get(0).expect("Made sure above");
-        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::LI, Register::R0, Box::new(ImmediateExpr::Int(10))), expr.expr);
+        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::LI, Register::R0, ImmediateExpr::Int(10)), expr.expr);
     }
 
     #[test]
@@ -979,7 +1045,7 @@ mod tests {
         let result = parse_str("addi $r0, 11");
         assert_eq!(1, result.program.len());
         let expr = result.program.get(0).expect("Made sure above");
-        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::ADDI, Register::R0, Box::new(ImmediateExpr::Int(11))), expr.expr);
+        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::ADDI, Register::R0, ImmediateExpr::Int(11)), expr.expr);
     }
 
     #[test]
@@ -987,7 +1053,7 @@ mod tests {
         let result = parse_str("subi $r0, 11");
         assert_eq!(1, result.program.len());
         let expr = result.program.get(0).expect("Made sure above");
-        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::SUBI, Register::R0, Box::new(ImmediateExpr::Int(11))), expr.expr);
+        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::SUBI, Register::R0, ImmediateExpr::Int(11)), expr.expr);
     }
 
     #[test]
@@ -995,7 +1061,7 @@ mod tests {
         let result = parse_str("muli $r0, 11");
         assert_eq!(1, result.program.len());
         let expr = result.program.get(0).expect("Made sure above");
-        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::MULI, Register::R0, Box::new(ImmediateExpr::Int(11))), expr.expr);
+        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::MULI, Register::R0, ImmediateExpr::Int(11)), expr.expr);
     }
 
     #[test]
@@ -1003,7 +1069,7 @@ mod tests {
         let result = parse_str("divi $r0, 11");
         assert_eq!(1, result.program.len());
         let expr = result.program.get(0).expect("Made sure above");
-        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::DIVI, Register::R0, Box::new(ImmediateExpr::Int(11))), expr.expr);
+        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::DIVI, Register::R0, ImmediateExpr::Int(11)), expr.expr);
     }
 
     #[test]
@@ -1011,12 +1077,12 @@ mod tests {
         let result = parse_str("jgzi $r0, 10");
         assert_eq!(1, result.program.len());
         let expr = result.program.get(0).expect("Made sure above");
-        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::JGZI, Register::R0, Box::new(ImmediateExpr::Int(10))), expr.expr);
+        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::JGZI, Register::R0, ImmediateExpr::Int(10)), expr.expr);
 
         let result = parse_str("jgzi $r0, %label");
         assert_eq!(1, result.program.len());
         let expr = result.program.get(0).expect("Made sure above");
-        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::JGZI, Register::R0, Box::new(ImmediateExpr::AddrToLabel("label".to_string()))), expr.expr);
+        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::JGZI, Register::R0, ImmediateExpr::AddrToLabel("label".to_string())), expr.expr);
     }
 
     #[test]
@@ -1024,14 +1090,14 @@ mod tests {
         let result = parse_str(".i32 13");
         assert_eq!(1, result.program.len());
         let expr = result.program.get(0).expect("Made sure above");
-        assert_eq!(Expr::StoreI32(Box::new(ImmediateExpr::Int(13))), expr.expr);
+        assert_eq!(Expr::StoreI32(ImmediateExpr::Int(13)), expr.expr);
 
         let result = parse_str(".i32 13\n.i32 9");
         assert_eq!(2, result.program.len());
         let expr = result.program.get(0).expect("Made sure above");
-        assert_eq!(Expr::StoreI32(Box::new(ImmediateExpr::Int(13))), expr.expr);
+        assert_eq!(Expr::StoreI32(ImmediateExpr::Int(13)), expr.expr);
         let expr = result.program.get(1).expect("Made sure above");
-        assert_eq!(Expr::StoreI32(Box::new(ImmediateExpr::Int(9))), expr.expr);
+        assert_eq!(Expr::StoreI32(ImmediateExpr::Int(9)), expr.expr);
     }
 
     #[test]
@@ -1074,7 +1140,7 @@ mod tests {
             let result = parse_string(&(op_code.to_string() + " $r0, 10"));
             assert_eq!(1, result.program.len());
             let expr = result.program.get(0).expect("Made sure above");
-            assert_eq!(Expr::InstructionRegisterAndImmediate(op_code, Register::R0, Box::new(ImmediateExpr::Int(10))), expr.expr);
+            assert_eq!(Expr::InstructionRegisterAndImmediate(op_code, Register::R0, ImmediateExpr::Int(10)), expr.expr);
         }
     }
 
@@ -1098,7 +1164,76 @@ mod tests {
             let result = parse_string(&(op_code.to_string() + " 102"));
             assert_eq!(1, result.program.len());
             let expr = result.program.get(0).expect("Made sure above");
-            assert_eq!(Expr::InstructionImmediate(op_code, Box::new(ImmediateExpr::Int(102))), expr.expr);
+            assert_eq!(Expr::InstructionImmediate(op_code, ImmediateExpr::Int(102)), expr.expr);
+        }
+    }
+
+    #[test]
+    fn parse_instruction_immediate_add() {
+        let op_codes = [ OpCode::SYSCALLI, OpCode::JI, OpCode::JIL ];
+
+        for op_code in op_codes {
+            let result = parse_string(&(op_code.to_string() + " 102 + 105"));
+            assert_eq!(1, result.program.len());
+            let expr = result.program.get(0).expect("Made sure above");
+            assert_eq!(Expr::InstructionImmediate(op_code, ImmediateExpr::Add(Box::new(ImmediateExpr::Int(102)), Box::new(ImmediateExpr::Int(105)))), expr.expr);
+        }
+    }
+
+    #[test]
+    fn parse_instruction_immediate_sub() {
+        let op_codes = [ OpCode::SYSCALLI, OpCode::JI, OpCode::JIL ];
+
+        for op_code in op_codes {
+            let result = parse_string(&(op_code.to_string() + " 102 - 105"));
+            assert_eq!(1, result.program.len());
+            let expr = result.program.get(0).expect("Made sure above");
+            assert_eq!(Expr::InstructionImmediate(op_code, ImmediateExpr::Sub(Box::new(ImmediateExpr::Int(102)), Box::new(ImmediateExpr::Int(105)))), expr.expr);
+        }
+    }
+
+    #[test]
+    fn parse_instruction_immediate_mul() {
+        let op_codes = [ OpCode::SYSCALLI, OpCode::JI, OpCode::JIL ];
+
+        for op_code in op_codes {
+            let result = parse_string(&(op_code.to_string() + " 102 * 105"));
+            assert_eq!(1, result.program.len());
+            let expr = result.program.get(0).expect("Made sure above");
+            assert_eq!(Expr::InstructionImmediate(op_code, ImmediateExpr::Mul(Box::new(ImmediateExpr::Int(102)), Box::new(ImmediateExpr::Int(105)))), expr.expr);
+        }
+    }
+
+    #[test]
+    fn parse_instruction_immediate_div() {
+        let op_codes = [ OpCode::SYSCALLI, OpCode::JI, OpCode::JIL ];
+
+        for op_code in op_codes {
+            let result = parse_string(&(op_code.to_string() + " 102 / 105"));
+            assert_eq!(1, result.program.len());
+            let expr = result.program.get(0).expect("Made sure above");
+            assert_eq!(Expr::InstructionImmediate(op_code, ImmediateExpr::Div(Box::new(ImmediateExpr::Int(102)), Box::new(ImmediateExpr::Int(105)))), expr.expr);
+        }
+    }
+
+    #[test]
+    fn parse_instruction_immediate_mul_add_with_precedence() {
+        let op_codes = [ OpCode::SYSCALLI, OpCode::JI, OpCode::JIL ];
+
+        for op_code in op_codes {
+            let result = parse_string(&(op_code.to_string() + " 1 + 2 * 3"));
+            assert_eq!(1, result.program.len());
+            let expr = result.program.get(0).expect("Made sure above");
+            assert_eq!(Expr::InstructionImmediate(op_code, ImmediateExpr::Add(Box::new(ImmediateExpr::Int(1)), Box::new(ImmediateExpr::Mul(Box::new(ImmediateExpr::Int(2)), Box::new(ImmediateExpr::Int(3)))))), expr.expr);
+        }
+
+        let op_codes = [ OpCode::SYSCALLI, OpCode::JI, OpCode::JIL ];
+
+        for op_code in op_codes {
+            let result = parse_string(&(op_code.to_string() + " 1 * 2 + 3"));
+            assert_eq!(1, result.program.len());
+            let expr = result.program.get(0).expect("Made sure above");
+            assert_eq!(Expr::InstructionImmediate(op_code, ImmediateExpr::Add(Box::new(ImmediateExpr::Mul(Box::new(ImmediateExpr::Int(1)), Box::new(ImmediateExpr::Int(2)))), Box::new(ImmediateExpr::Int(3)))), expr.expr);
         }
     }
 }
