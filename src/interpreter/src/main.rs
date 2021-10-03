@@ -98,7 +98,7 @@ fn main() {
     if let Some(program) = program {
         let interpreter = runtime::BinaryInterpreter::new_with_initial(&program);
         if let Some(interpreter) = interpreter {
-            let mut vm = runtime::BinaryVirtualMachine::new(interpreter);
+            let mut vm = runtime::BinaryVirtualMachine::new(interpreter, &mut std::io::stdout());
             let exit_code = vm.execute_first() as i32;
 
             if pretty_print_registers {

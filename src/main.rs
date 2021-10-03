@@ -96,7 +96,7 @@ fn main() {
 
     let interpreter = BinaryInterpreter::new_with_initial(&input);
     if let Some(interpreter) = interpreter {
-        let mut vm = BinaryVirtualMachine::new(interpreter);
+        let mut vm = BinaryVirtualMachine::new(interpreter, &mut std::io::stdout());
         let exit_code = vm.execute_first() as i32;
 
         if pretty_print_registers {

@@ -1,6 +1,6 @@
 # rust-vmcpu
 
-Custom CPU instruction set executed with a rust program. Licensed unter GPL
+Custom CPU instruction set executed with a rust program. Licensed under GPL
 Version 3.
 
 ## Build & run
@@ -254,9 +254,12 @@ syscalli %x
 
 ## System calls
 
-The following system calls are supported
+The following system calls are supported:
 
-- 0: Exit program (r1 is status value), writes $ip+4 to $ra
+- 0: Exit program (r1 is status value)
+- 1: Print to console (r1 is address to first byte, r2 is length)
+
+Every call writes $ip+4 to $ra.
 
 ## Opcodes
 

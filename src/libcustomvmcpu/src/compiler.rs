@@ -77,10 +77,6 @@ impl<'source> Compiler<'source> {
                 self.interpret_immediate_biop(expr0, expr1, |x, y| x.wrapping_mul(y)),
             ImmediateExpr::Div(expr0, expr1) =>
                 self.interpret_immediate_biop(expr0, expr1, |x, y| x.wrapping_div(y)),
-            _ => {
-                // No such immediate
-                None
-            }
         }
     }
 
@@ -205,6 +201,7 @@ pub fn parse_and_compile_str(program: &'static str) -> Option<Vec<u8>> {
 #[cfg(test)]
 mod tests_compiler {
     use super::{compile, parse_and_compile_str, utils, Register, OpCode};
+    use super::super::runtime;
 
     #[test]
     fn cpy() {
@@ -289,5 +286,25 @@ mod tests_compiler {
         assert_eq!(Some(
                 [utils::create_instruction_register_and_immediate(OpCode::LI, Register::R1, 4).to_le_bytes(),
                 utils::create_instruction_two_registers(OpCode::CPY, Register::R1, Register::R4).to_le_bytes()].concat().to_vec()), result);
+    }
+
+    #[test]
+    fn execute_syscall_print() {
+        const PROGRAM: &'static str = concat!(
+            "li $r1, %string\n",
+            "li $r2, 14\n", // String is 14 chars long
+            "syscalli 1\n",
+            "li $r1, 0\n",
+            "syscalli 0\n",
+            "string: .str \"Hello, world!\\n\"\n"
+        );
+        let compile_result = parse_and_compile_str(&PROGRAM).expect("Should compile");
+
+        let interpreter = runtime::BinaryInterpreter::new_with_initial(&compile_result).unwrap();
+        let mut buffer = Vec::new();
+        let mut vm = runtime::BinaryVirtualMachine::new(interpreter, &mut buffer);
+        vm.execute_first();
+
+        assert_eq!(b"Hello, world!\n", buffer.as_slice());
     }
 }
