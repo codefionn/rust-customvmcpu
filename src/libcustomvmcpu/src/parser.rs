@@ -246,18 +246,25 @@ pub fn get_instruction_parse_type(op_code: OpCode) -> InstructionParseType {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum Expr
-{
+pub enum Expr {
     InstructionRegister(OpCode, Register),
-    InstructionImmediate(OpCode, Box<Expr>),
+    InstructionImmediate(OpCode, Box<ImmediateExpr>),
     InstructionTwoRegisters(OpCode, Register, Register),
-    InstructionRegisterAndImmediate(OpCode, Register, Box<Expr>),
-    StoreI32(Box<Expr>),
+    InstructionRegisterAndImmediate(OpCode, Register, Box<ImmediateExpr>),
+    StoreI32(Box<ImmediateExpr>),
     StoreStr(String),
     Label(String),
-    Int(u32),
-    AddrToLabel(String),
     Error(),
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum ImmediateExpr {
+    Int(u32),
+    Add(Box<ImmediateExpr>, Box<ImmediateExpr>),
+    Sub(Box<ImmediateExpr>, Box<ImmediateExpr>),
+    Mul(Box<ImmediateExpr>, Box<ImmediateExpr>),
+    Div(Box<ImmediateExpr>, Box<ImmediateExpr>),
+    AddrToLabel(String),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -612,16 +619,16 @@ impl Parser {
         return result;
     }
 
-    fn parse_immediate(&mut self, current: &mut Option<Token>, lex: &mut Lexer<Token>) -> Option<Expr> {
+    fn parse_immediate(&mut self, current: &mut Option<Token>, lex: &mut Lexer<Token>) -> Option<ImmediateExpr> {
         if let Some(tok) = current {
             match tok {
                 Token::Int => {
-                    let result = Some(Expr::Int(lex.slice().parse().expect("Expect rangers everything was made sure!")));
+                    let result = Some(ImmediateExpr::Int(lex.slice().parse().expect("Expect rangers everything was made sure!")));
                     self.next(current, lex); // eat int
                     result
                 },
                 Token::AddrToLabel => {
-                    let result = Some(Expr::AddrToLabel(lex.slice().get(1..).expect("Made sure by lexer").into()));
+                    let result = Some(ImmediateExpr::AddrToLabel(lex.slice().get(1..).expect("Made sure by lexer").into()));
                     self.next(current, lex); // eat addr_to_label
                     result
                 },
@@ -676,7 +683,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use crate::common::{OpCode, Register};
-    use super::{Token, parse_str, parse_string, ParserResult, Expr};
+    use super::{Token, parse_str, parse_string, ParserResult, Expr, ImmediateExpr};
     use logos::{Logos, Lexer};
 
     #[test]
@@ -948,7 +955,7 @@ mod tests {
         println!("{:?}", result.errors);
         assert_eq!(1, result.program.len());
         let expr = result.program.get(0).expect("Made sure above");
-        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::LI, Register::R0, Box::new(Expr::Int(10))), expr.expr);
+        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::LI, Register::R0, Box::new(ImmediateExpr::Int(10))), expr.expr);
     }
 
     #[test]
@@ -972,7 +979,7 @@ mod tests {
         let result = parse_str("addi $r0, 11");
         assert_eq!(1, result.program.len());
         let expr = result.program.get(0).expect("Made sure above");
-        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::ADDI, Register::R0, Box::new(Expr::Int(11))), expr.expr);
+        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::ADDI, Register::R0, Box::new(ImmediateExpr::Int(11))), expr.expr);
     }
 
     #[test]
@@ -980,7 +987,7 @@ mod tests {
         let result = parse_str("subi $r0, 11");
         assert_eq!(1, result.program.len());
         let expr = result.program.get(0).expect("Made sure above");
-        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::SUBI, Register::R0, Box::new(Expr::Int(11))), expr.expr);
+        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::SUBI, Register::R0, Box::new(ImmediateExpr::Int(11))), expr.expr);
     }
 
     #[test]
@@ -988,7 +995,7 @@ mod tests {
         let result = parse_str("muli $r0, 11");
         assert_eq!(1, result.program.len());
         let expr = result.program.get(0).expect("Made sure above");
-        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::MULI, Register::R0, Box::new(Expr::Int(11))), expr.expr);
+        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::MULI, Register::R0, Box::new(ImmediateExpr::Int(11))), expr.expr);
     }
 
     #[test]
@@ -996,7 +1003,7 @@ mod tests {
         let result = parse_str("divi $r0, 11");
         assert_eq!(1, result.program.len());
         let expr = result.program.get(0).expect("Made sure above");
-        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::DIVI, Register::R0, Box::new(Expr::Int(11))), expr.expr);
+        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::DIVI, Register::R0, Box::new(ImmediateExpr::Int(11))), expr.expr);
     }
 
     #[test]
@@ -1004,12 +1011,12 @@ mod tests {
         let result = parse_str("jgzi $r0, 10");
         assert_eq!(1, result.program.len());
         let expr = result.program.get(0).expect("Made sure above");
-        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::JGZI, Register::R0, Box::new(Expr::Int(10))), expr.expr);
+        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::JGZI, Register::R0, Box::new(ImmediateExpr::Int(10))), expr.expr);
 
         let result = parse_str("jgzi $r0, %label");
         assert_eq!(1, result.program.len());
         let expr = result.program.get(0).expect("Made sure above");
-        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::JGZI, Register::R0, Box::new(Expr::AddrToLabel("label".to_string()))), expr.expr);
+        assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::JGZI, Register::R0, Box::new(ImmediateExpr::AddrToLabel("label".to_string()))), expr.expr);
     }
 
     #[test]
@@ -1017,14 +1024,14 @@ mod tests {
         let result = parse_str(".i32 13");
         assert_eq!(1, result.program.len());
         let expr = result.program.get(0).expect("Made sure above");
-        assert_eq!(Expr::StoreI32(Box::new(Expr::Int(13))), expr.expr);
+        assert_eq!(Expr::StoreI32(Box::new(ImmediateExpr::Int(13))), expr.expr);
 
         let result = parse_str(".i32 13\n.i32 9");
         assert_eq!(2, result.program.len());
         let expr = result.program.get(0).expect("Made sure above");
-        assert_eq!(Expr::StoreI32(Box::new(Expr::Int(13))), expr.expr);
+        assert_eq!(Expr::StoreI32(Box::new(ImmediateExpr::Int(13))), expr.expr);
         let expr = result.program.get(1).expect("Made sure above");
-        assert_eq!(Expr::StoreI32(Box::new(Expr::Int(9))), expr.expr);
+        assert_eq!(Expr::StoreI32(Box::new(ImmediateExpr::Int(9))), expr.expr);
     }
 
     #[test]
@@ -1067,7 +1074,7 @@ mod tests {
             let result = parse_string(&(op_code.to_string() + " $r0, 10"));
             assert_eq!(1, result.program.len());
             let expr = result.program.get(0).expect("Made sure above");
-            assert_eq!(Expr::InstructionRegisterAndImmediate(op_code, Register::R0, Box::new(Expr::Int(10))), expr.expr);
+            assert_eq!(Expr::InstructionRegisterAndImmediate(op_code, Register::R0, Box::new(ImmediateExpr::Int(10))), expr.expr);
         }
     }
 
@@ -1091,7 +1098,7 @@ mod tests {
             let result = parse_string(&(op_code.to_string() + " 102"));
             assert_eq!(1, result.program.len());
             let expr = result.program.get(0).expect("Made sure above");
-            assert_eq!(Expr::InstructionImmediate(op_code, Box::new(Expr::Int(102))), expr.expr);
+            assert_eq!(Expr::InstructionImmediate(op_code, Box::new(ImmediateExpr::Int(102))), expr.expr);
         }
     }
 }

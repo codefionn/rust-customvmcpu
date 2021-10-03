@@ -22,7 +22,7 @@ use std::iter::Iterator;
 use std::mem::size_of;
 use super::common::{OpCode, Register, Error, LAST_REGISTER, ERROR_START_NUM};
 use super::runtime::utils;
-use super::parser::{Expr, ParserExpr, ParserResult, ParserError, ParserErrorType, parse_str};
+use super::parser::{Expr, ImmediateExpr, ParserExpr, ParserResult, ParserError, ParserErrorType, parse_str};
 
 fn filter_errors(program: &mut Vec<ParserExpr>) {
     program.retain(|x| x.expr != Expr::Error());
@@ -57,10 +57,10 @@ struct Compiler<'source> {
 }
 
 impl<'source> Compiler<'source> {
-    fn interpret_immediate(&mut self, expr: &Expr) -> Option<u32> {
+    fn interpret_immediate(&mut self, expr: &ImmediateExpr) -> Option<u32> {
         match expr {
-            Expr::Int(result) => Some(*result),
-            Expr::AddrToLabel(label) => {
+            ImmediateExpr::Int(result) => Some(*result),
+            ImmediateExpr::AddrToLabel(label) => {
                 println!("{:?}", self.label_map);
                 if let Some(result) = self.label_map.get(label) {
                     Some(*result)
