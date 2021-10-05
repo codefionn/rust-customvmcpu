@@ -369,18 +369,15 @@ impl Parser {
     fn next<'source>(&mut self, tok: &'source mut Option<Token>, lex: &mut Lexer<Token>) -> &'source mut Option<Token>
     {
         *tok = lex.next();
-        println!("{:?}", *tok);
         return tok;
     }
 
     /// Parse a single expression, like an instruction
     pub fn parse_expr(&mut self, current: &mut Option<Token>, lex: &mut Lexer<Token>) -> Option<ParserExpr>
     {
-        println!("{:?}", current);
         self.advance_newlines(current, lex);
 
         let tok = (*current)?;
-         println!("{:?}", tok);
          Some(match tok {
              Token::KwCpy => self.parse_instruction(OpCode::CPY, current, lex),
              Token::KwLw => self.parse_instruction(OpCode::LW, current, lex),
@@ -457,7 +454,6 @@ impl Parser {
 
     pub fn parse_immediate_string(&mut self, tok: &mut Option<Token>, lex: &mut Lexer<Token>) -> Option<String> {
         let pos = lex.span();
-        eprintln!("Expect: {:?}", *tok);
 
         if let Some(Token::String) = tok {
             let tokstr = lex.slice();
@@ -491,8 +487,6 @@ impl Parser {
                 }
 
                 i += 1;
-
-                eprintln!("String: {}", result);
             }
 
             self.next(tok, lex);
@@ -535,7 +529,6 @@ impl Parser {
         let start = lex.span();
 
         let parse_type = get_instruction_parse_type(op_code);
-        println!("{:?}, {:?}", op_code, parse_type);
         let expr = match parse_type {
             InstructionParseType::Register => {
                 self.next(tok, lex);
@@ -618,7 +611,6 @@ impl Parser {
 
     fn expect_newline(&mut self, tok: &mut Option<Token>, lex: &mut Lexer<Token>) -> bool {
         if !self.advance_newlines(tok, lex) {
-            eprintln!("Expected newline, not: {:?}", tok);
             self.errors.push(ParserError { pos: lex.span(), err_type: ParserErrorType::ExpectedValidImmediate });
             return false;
         }
@@ -754,7 +746,6 @@ impl Parser {
                 "sp" => Some(Register::SP),
                 "err" => Some(Register::ERR),
                 _ => {
-                    eprintln!("Expected register: {:?}", tok);
                     self.errors.push(ParserError { pos: lex.span(), err_type: ParserErrorType::ExpectedValidRegister });
                     None
                 }
@@ -1044,8 +1035,6 @@ mod tests {
     #[test]
     fn parse_li() {
         let result = parse_str("li $r0, 10");
-        println!("{:?}", result.program);
-        println!("{:?}", result.errors);
         assert_eq!(1, result.program.len());
         let expr = result.program.get(0).expect("Made sure above");
         assert_eq!(Expr::InstructionRegisterAndImmediate(OpCode::LI, Register::R0, ImmediateExpr::Int(10)), expr.expr);

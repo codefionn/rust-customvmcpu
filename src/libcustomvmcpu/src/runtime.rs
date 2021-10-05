@@ -74,7 +74,6 @@ impl BinaryInterpreter {
     pub fn new_with_program(program: &[u32]) -> Option<BinaryInterpreter> {
         let mut result = Self::new();
         if program.len() > result.memory.len() {
-            eprintln!("Program length must be smaller than memory");
             return None;
         }
 
@@ -237,8 +236,6 @@ impl<'source, InterpreterImpl: Interpreter> VirtualMachine<'source, InterpreterI
         let opcode = Self::get_opcode(instruction);
         let opcode = OpCode::from_u8(opcode);
         if let Some(opcode) = opcode {
-            //println!("Executing opcode: {:?}", opcode);
-
             match opcode {
                 OpCode::SYSCALLI => {
                     self.write_next_instruction_address();
@@ -307,7 +304,6 @@ impl<'source, InterpreterImpl: Interpreter> VirtualMachine<'source, InterpreterI
                         self.write_user_register_value(reg_value0, imm1);
                     }
                     else {
-                        eprintln!("Register {:?} does not exists!", reg0);
                         self.write_error(Error::Register);
                     }
                 },
@@ -411,7 +407,6 @@ impl<'source, InterpreterImpl: Interpreter> VirtualMachine<'source, InterpreterI
                         self.write_register_value(Register::IP, address.wrapping_sub(4)); // Minus 4 because this will be added after every cycle
                     }
                     else {
-                        eprintln!("Register {:?} does not exists!", reg);
                         self.write_error(Error::Register);
                     }
                 },
@@ -456,7 +451,6 @@ impl<'source, InterpreterImpl: Interpreter> VirtualMachine<'source, InterpreterI
                         self.write_user_register_value(reg_value, !val);
                     }
                     else {
-                        eprintln!("Register {:?} does not exists!", reg);
                         self.write_error(Error::Register);
                     }
                 },
@@ -477,7 +471,6 @@ impl<'source, InterpreterImpl: Interpreter> VirtualMachine<'source, InterpreterI
             }
         }
         else {
-            eprintln!("Instruction {:?} does not exist!", opcode);
             self.write_error(Error::OpCode);
             return;
         }
@@ -494,7 +487,6 @@ impl<'source, InterpreterImpl: Interpreter> VirtualMachine<'source, InterpreterI
           }
       }
       else {
-          eprintln!("Register {:?} does not exists!", reg);
           self.write_error(Error::Register);
       }
     }
@@ -507,7 +499,6 @@ impl<'source, InterpreterImpl: Interpreter> VirtualMachine<'source, InterpreterI
           self.write_user_register_value(reg_value, result);
       }
       else {
-          eprintln!("Register {:?} does not exists!", reg);
           self.write_error(Error::Register);
       }
     }
@@ -518,7 +509,6 @@ impl<'source, InterpreterImpl: Interpreter> VirtualMachine<'source, InterpreterI
           binary_op(self, reg_value, imm);
       }
       else {
-          eprintln!("Register {:?} does not exists!", reg);
           self.write_error(Error::Register);
       }
     }
@@ -534,7 +524,6 @@ impl<'source, InterpreterImpl: Interpreter> VirtualMachine<'source, InterpreterI
           self.write_user_register_value(reg_value0, result);
       }
       else {
-          eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
           self.write_error(Error::Register);
       }
     }
@@ -545,7 +534,6 @@ impl<'source, InterpreterImpl: Interpreter> VirtualMachine<'source, InterpreterI
           binary_op(self, reg_value0, reg_value1);
       }
       else {
-          eprintln!("Register {:?} or {:?} does not exists!", reg0, reg1);
           self.write_error(Error::Register);
       }
     }
@@ -576,7 +564,6 @@ impl<'source, InterpreterImpl: Interpreter> VirtualMachine<'source, InterpreterI
             self.write_register_value(reg_value, value);
         }
         else {
-            eprintln!("Unkown register {:?}", reg);
             self.write_register_value(Register::ERR, Error::Register as u32);
         }
     }
@@ -585,7 +572,6 @@ impl<'source, InterpreterImpl: Interpreter> VirtualMachine<'source, InterpreterI
     #[inline(always)]
     pub fn write_user_register_value(&mut self, reg: Register, value: u32) {
         if Self::is_readonly(reg) {
-           eprintln!("Register {:?} is read-only", reg);
            self.write_error(Error::ReadonlyRegister);
         }
         else {
@@ -625,14 +611,14 @@ impl<'source, InterpreterImpl: Interpreter> VirtualMachine<'source, InterpreterI
                 let len = self.read_user_register_value(Register::R2);
                 let chunk = self.read_user_chunk(addr, len);
                 if let Some(chunk) = chunk {
-                    self.stdout.write(chunk.as_slice());
+                    let write_result = self.stdout.write(chunk.as_slice()).is_ok();
+                    self.write_user_register_value(Register::R0, write_result as u32);
                 }
                 else {
                     self.write_error(Error::Memory);
                 }
             },
             _ => {
-                eprintln!("Unknown syscall {:?}", syscall);
                 self.write_register_value(Register::ERR, Error::Syscall as u32);
             }
         }

@@ -61,7 +61,6 @@ impl<'source> Compiler<'source> {
         match expr {
             ImmediateExpr::Int(result) => Some(*result),
             ImmediateExpr::AddrToLabel(label) => {
-                println!("{:?}", self.label_map);
                 if let Some(result) = self.label_map.get(label) {
                     Some(*result)
                 }
@@ -90,7 +89,6 @@ impl<'source> Compiler<'source> {
         match &expr.expr {
             Expr::Label(label) => {
                 self.label_map.insert(label.clone(), prog_pos);
-                println!("{:?}", self.label_map);
                 CompileExprResult::CompileToNone
             },
             Expr::InstructionTwoRegisters(op_code, reg0, reg1) => {
@@ -161,10 +159,8 @@ pub fn compile(parser_result: &mut ParserResult) -> Option<Vec<u8>> {
     loop {
         filtered_program_with_pos.retain(|expr| {
             let expr_result = compiler.compile_expr(&expr.expr, expr.pos);
-            println!("{:?}", expr_result);
             return !(match expr_result {
                     CompileExprResult::CompileToResult(expr_to_bytes) => {
-                    println!("{:?}", expr_to_bytes);
                     result.get_mut(expr.pos as usize..(expr.pos as usize + expr_to_bytes.len())).expect("Made sure").copy_from_slice(expr_to_bytes.as_slice());
                     true
                 }
