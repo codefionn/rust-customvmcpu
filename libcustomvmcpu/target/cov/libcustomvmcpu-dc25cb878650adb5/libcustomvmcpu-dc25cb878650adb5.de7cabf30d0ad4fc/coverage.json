@@ -1,0 +1,16 @@
+{
+  "files": [
+    {"file": "/home/user/Nextcloud/prog/rust-vmcpu/src/libcustomvmcpu/src/common.rs", "percent_covered": "77.27", "covered_lines": "34", "total_lines": "44"},
+    {"file": "/home/user/Nextcloud/prog/rust-vmcpu/src/libcustomvmcpu/src/runtime.rs", "percent_covered": "98.72", "covered_lines": "1079", "total_lines": "1093"},
+    {"file": "/home/user/Nextcloud/prog/rust-vmcpu/src/libcustomvmcpu/src/compiler.rs", "percent_covered": "78.99", "covered_lines": "94", "total_lines": "119"},
+    {"file": "/home/user/Nextcloud/prog/rust-vmcpu/src/libcustomvmcpu/src/lib.rs", "percent_covered": "100.00", "covered_lines": "1", "total_lines": "1"},
+    {"file": "/home/user/Nextcloud/prog/rust-vmcpu/src/libcustomvmcpu/src/parser.rs", "percent_covered": "89.52", "covered_lines": "487", "total_lines": "544"}
+  ],
+  "percent_covered": "94.11",
+  "covered_lines": 1695,
+  "total_lines": 1801,
+  "percent_low": 25,
+  "percent_high": 75,
+  "command": "libcustomvmcpu-dc25cb878650adb5",
+  "date": "2021-09-25 18:55:33"
+}

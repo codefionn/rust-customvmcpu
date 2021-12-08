@@ -1,10 +1,6 @@
 [workspace]
 members = [
-	"src/compiler",
-	"src/exampleprogramwriter",
-	"src/interpreter",
-	"src/libcustomvmcpu",
-	"src/customvmcpu-json"
+	"customvmcpu-json"
 ]
 
 [package]
@@ -16,4 +12,13 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-libcustomvmcpu = { path = "src/libcustomvmcpu" }
+libcustomvmcpu = { path = "./libcustomvmcpu" }
+
+[[example]]
+name = "compiler"
+
+[[example]]
+name = "exampleprogramwriter"
+
+[[example]]
+name = "interpreter"
