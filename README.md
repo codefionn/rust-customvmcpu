@@ -307,3 +307,11 @@ Every call writes $ip+4 to $ra.
 - shi: 0x28
 - lbi: 0x29
 - sbi: 0x30
+
+## Reading compiled programs in Linux
+
+The following command prints the binary files as hexedecimal numbers in 32-bit chunks to the terminal:
+
+```sh
+hexdump -v -e '1/4 "%08x " "\n"' programs/bin/add_32_100.bin
+```
