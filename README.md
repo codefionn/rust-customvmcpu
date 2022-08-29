@@ -16,7 +16,7 @@ cargo build
 ### Run (in same directory)
 
 ```sh
-cargo run -- --register-table ./src/exampleprogramwriter/out/add_32_100.bin
+cargo run -- --register-table ./libs/exampleprogramwriter/out/add_32_100.bin
 ```
 
 This runs the add program which adds two numbers on register $r0.
@@ -24,10 +24,16 @@ This runs the add program which adds two numbers on register $r0.
 ### Build & run interpreter
 
 ```sh
-cargo run -p interpreter -- ./src/interpreter/program/hello_world.asm
+cargo run -p interpreter -- ./libs/interpreter/program/hello_world.asm
 ```
 
 This prints hello world to console.
+
+### Test
+
+```sh
+cargo test --workspace
+```
 
 ## Instruction format
 

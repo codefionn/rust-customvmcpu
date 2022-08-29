@@ -1,5 +1,6 @@
 /target
-/src/libcustomvmcpu/target
-/src/exampleprogramwriter/target
-/src/interpreter/target
-/src/compiler/target
+/lib/customvmcpu-json/target
+/lib/libcustomvmcpu/target
+/lib/exampleprogramwriter/target
+/lib/interpreter/target
+/lib/compiler/target
